@@ -13,6 +13,24 @@ var gl = canvas.getContext('webgl')
 
 var camera = createCamera()
 
+
+function makeTicks(count) {
+  var result = []
+  for(var i=0; i<count; ++i) {
+    result.push({
+      x: i,
+      text: i + ''
+    })
+  }
+  return result
+}
+
+var axes = createAxes(gl, {
+  bounds: [-1,-1],
+  ticks:  [ makeTicks(10), makeTicks(10) ],
+  labels: ['x', 'y']
+})
+
 var lastX = 0
 var lastY = 0
 
@@ -22,26 +40,27 @@ mouseWheel(function(dx, dy) {
   } else {
     dy = 0
   }
-  camera.rotateScale(dx, dy, lastX, lastY)
+  camera.scaleRotate(Math.exp(0.1*dy/canvas.height), 2.0*Math.PI*dx/canvas.width, lastX, lastY)
   return true
 })
 
 mouseChange(function(buttons, x, y) {
   if(buttons & 1) {
-    var dx = 2.0 * (x - lastX) / canvas.width
-    var dy = 2.0 * (lastY - y) / canvas.width
-    camera.pan(dx, dy)
+    camera.translate(x - lastX, lastY - y)
   }
   lastX = x
   lastY = y
 })
 
 function render() {
+  camera.width  = canvas.width
+  camera.height = canvas.height
   requestAnimationFrame(render)
   gl.viewport(0, 0, canvas.width, canvas.height)
   gl.enable(gl.DEPTH_TEST)
   gl.clearColor(0.93, 0.95, 1, 1)
   gl.clear(gl.COLOR_BUFFER_BIT)
+  axes.draw(camera.getMatrix())
 }
 
 render()
