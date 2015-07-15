@@ -1,18 +1,13 @@
 var fit = require('canvas-fit')
-var gaussRandom = require('gauss-random')
 var mouseWheel = require('mouse-wheel')
 var mouseChange = require('mouse-change')
-var createCamera = require('camera-2d')
-var createAxes = require('../axes2d')
+var createPlot = require('../plot')
 
 var canvas = document.createElement('canvas')
 document.body.appendChild(canvas)
 window.addEventListener('resize', fit(canvas), false)
 
 var gl = canvas.getContext('webgl')
-
-var camera = createCamera()
-
 
 function makeTicks(count) {
   var result = []
@@ -25,42 +20,25 @@ function makeTicks(count) {
   return result
 }
 
-var axes = createAxes(gl, {
-  bounds: [-1,-1],
-  ticks:  [ makeTicks(10), makeTicks(10) ],
-  labels: ['x', 'y']
-})
-
-var lastX = 0
-var lastY = 0
-
-mouseWheel(function(dx, dy) {
-  if(Math.abs(dy) > Math.abs(dx)) {
-    dx = 0
-  } else {
-    dy = 0
+var options = {
+  gl:      gl,
+  borderColor:     [0, 1, 0, 1],
+  backgroundColor: [1, 0, 0, 1],
+  dataBox:         [-10, -10,  10,  10],
+  title:           'chart title',
+  axes:{
+    ticks:  [ makeTicks(10), makeTicks(10) ],
+    labels: ['x', 'y']
   }
-  camera.scaleRotate(Math.exp(0.1*dy/canvas.height), 2.0*Math.PI*dx/canvas.width, lastX, lastY)
-  return true
-})
+}
 
-mouseChange(function(buttons, x, y) {
-  if(buttons & 1) {
-    camera.translate(x - lastX, lastY - y)
-  }
-  lastX = x
-  lastY = y
-})
+var plot = createPlot(options)
 
 function render() {
-  camera.width  = canvas.width
-  camera.height = canvas.height
   requestAnimationFrame(render)
-  gl.viewport(0, 0, canvas.width, canvas.height)
-  gl.enable(gl.DEPTH_TEST)
-  gl.clearColor(0.93, 0.95, 1, 1)
-  gl.clear(gl.COLOR_BUFFER_BIT)
-  axes.draw(camera.getMatrix())
+  plot.screenBox[2] = gl.drawingBufferWidth
+  plot.screenBox[3] = gl.drawingBufferHeight
+  plot.draw()
 }
 
 render()
