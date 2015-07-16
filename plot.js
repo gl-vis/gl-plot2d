@@ -3,17 +3,19 @@
 module.exports = createGLPlot2D
 
 var createGrid = require('./lib/grid')
+var createText = require('./lib/text')
 
 function GLPlot2D(gl, grid) {
-  this.gl           = gl
-  this.screenBox    = [0,0,gl.drawingBufferWidth,gl.drawingBufferHeight]
-  this.viewBox      = [-0.75,-0.75, 0.75, 0.75]
-  this.viewPixels   = [0,0,0,0]
-  this.dataBox      = [-10, -10, 10, 10]
-  this._tickBounds  = [Infinity, Infinity, -Infinity, -Infinity]
-  this.grid         = grid
-  this.pixelRatio   = 1
-  this.objects      = []
+  this.gl             = gl
+  this.screenBox      = [0,0,gl.drawingBufferWidth,gl.drawingBufferHeight]
+  this.viewBox        = [-0.75,-0.75, 0.75, 0.75]
+  this.viewPixels     = [0,0,0,0]
+  this.dataBox        = [-10, -10, 10, 10]
+  this._tickBounds    = [Infinity, Infinity, -Infinity, -Infinity]
+  this.gridLineWidth  = [1,1]
+  this.grid           = grid
+  this.pixelRatio     = 1
+  this.objects        = []
 
   this.borderColor     = [0,0,0,0]
   this.backgroundColor = [0,0,0,0]
@@ -31,10 +33,15 @@ proto.redraw = function() {
   }
 }
 
-proto.setDataBox = function() {
+proto.setDataBox = function(box) {
+  var _box = this.dataBox
+  for(var i=0; i<4; ++i) {
+    _box[i] = box[i]
+  }
+  this.setDirty()
 }
 
-proto.setViewport = function() {
+proto.setViewport = function(view) {
 }
 
 proto.setDirty = function() {
@@ -81,7 +88,8 @@ proto.draw = function() {
 
   //Draw border lines
 
-  //Draw tick text marks
+  //Draw tick marks
+
 
   //Draw center pane
   gl.scissor(
@@ -107,12 +115,26 @@ proto.draw = function() {
 
   //Draw traces
 
-  //Scissor screen box
+  //Return viewport to default
+  gl.viewport(
+    screenBox[0],
+    screenBox[1],
+    screenBox[2]-screenBox[0],
+    screenBox[3]-screenBox[1])
   gl.scissor(
     screenBox[0],
     screenBox[1],
     screenBox[2]-screenBox[0],
     screenBox[3]-screenBox[1])
+
+  //Draw text elements
+  var text = this.text
+  text.bind()
+  for(var i=0; i<2; ++i) {
+    text.drawTicks(i)
+    text.drawLabel(i)
+  }
+  text.drawTitle()
 
   //Draw overlay elements
 
@@ -137,6 +159,10 @@ proto.update = function(options) {
   this.viewBox         = (options.viewBox || [-0.75,-0.75,0.75,0.75]).slice()
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
+  this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
+  this.tickPad         = (options.tickPad || [15, 15]).slice()
+  this.tickEnable      = (options.tickEnable || [true,true]).slice()
+  this.tickMirror      = (options.tickMirror || [false,false]).slice()
 
   var ticks = options.ticks || [ [], [] ]
 
@@ -153,9 +179,22 @@ proto.update = function(options) {
     }
   }
 
+  //Update grid
   this.grid.update({
     bounds: bounds,
     ticks:  ticks
+  })
+
+  //Update text
+  this.text.update({
+    bounds:     bounds,
+    ticks:      ticks,
+    labels:     options.labels    || ['x', 'y'],
+    labelSize:  options.labelSize || [12,12],
+    labelFont:  options.labelFont || ['sans-serif', 'sans-serif'],
+    title:      options.title     || '',
+    titleSize:  options.titleSize || 18,
+    titleFont:  options.titleFont || 'sans-serif'
   })
 }
 
@@ -180,6 +219,7 @@ function createGLPlot2D(options) {
   var gl = options.gl
   var plot = new GLPlot2D(gl, null)
   plot.grid = createGrid(plot)
+  plot.text = createText(plot)
   plot.update(options)
   return plot
 }

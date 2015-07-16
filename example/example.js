@@ -9,6 +9,8 @@ window.addEventListener('resize', fit(canvas), false)
 
 var gl = canvas.getContext('webgl')
 
+var dataBox = [-10,-10,10,10]
+
 function makeTicks(count) {
   var result = []
   for(var i=0; i<count; ++i) {
@@ -22,8 +24,6 @@ function makeTicks(count) {
 
 var options = {
   gl:      gl,
-  borderColor:     [0, 1, 0, 1],
-  backgroundColor: [1, 0, 0, 1],
   dataBox:         [-10, -10,  10,  10],
   title:           'chart title',
   ticks:  [ makeTicks(10), makeTicks(10) ],
@@ -32,10 +32,26 @@ var options = {
 
 var plot = createPlot(options)
 
+var lastX = 0, lastY = 0
+mouseChange(function(buttons, x, y) {
+  if(buttons & 1) {
+    var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewPixels[2]-plot.viewPixels[0])
+    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewPixels[3] - plot.viewPixels[1])
+
+    dataBox[0] += dx
+    dataBox[1] += dy
+    dataBox[2] += dx
+    dataBox[3] += dy
+  }
+  lastX = x
+  lastY = y
+})
+
 function render() {
   requestAnimationFrame(render)
   plot.screenBox[2] = gl.drawingBufferWidth
   plot.screenBox[3] = gl.drawingBufferHeight
+  plot.setDataBox(dataBox)
   plot.draw()
 }
 

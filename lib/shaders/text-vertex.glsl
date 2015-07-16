@@ -1,9 +1,12 @@
-attribute vec2 textCoordinate;
+attribute vec3 textCoordinate;
 
-uniform mat3 camera;
-uniform vec2 dataOffset;
+uniform vec2 dataScale, dataShift, dataAxis, screenOffset, textScale;
 
 void main() {
-  vec3 screenHG = camera * vec3(textCoordinate + dataOffset, 1);
-  gl_Position = vec4(screenHG.xy, 0, screenHG.z);
+  float dataOffset  = textCoordinate.z;
+  vec2 glyphOffset  = textCoordinate.xy;
+  vec2 screenCoordinate = dataAxis * (dataScale * dataOffset - dataShift) +
+    glyphOffset * textScale +
+    screenOffset;
+  gl_Position = vec4(screenCoordinate, 0, 1);
 }
