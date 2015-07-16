@@ -2,18 +2,18 @@
 
 module.exports = createGLPlot2D
 
-var grid = require('./lib/grid')
+var createGrid = require('./lib/grid')
 
 function GLPlot2D(gl, grid) {
-  this.gl         = gl
-  this.screenBox  = [0,0,gl.drawingBufferWidth,gl.drawingBufferHeight]
-  this.viewBox    = [-0.75,-0.75, 0.75, 0.75]
-  this.viewPixels = [0,0,0,0]
-  this.dataBox    = [-10, -10, 10, 10]
-  this._tickBounds = [Infinity, Infinity, -Infinity, -Infinity]
-  this.grid       = grid
-  this.pixelRatio = 1
-  this.objects    = []
+  this.gl           = gl
+  this.screenBox    = [0,0,gl.drawingBufferWidth,gl.drawingBufferHeight]
+  this.viewBox      = [-0.75,-0.75, 0.75, 0.75]
+  this.viewPixels   = [0,0,0,0]
+  this.dataBox      = [-10, -10, 10, 10]
+  this._tickBounds  = [Infinity, Infinity, -Infinity, -Infinity]
+  this.grid         = grid
+  this.pixelRatio   = 1
+  this.objects      = []
 
   this.borderColor     = [0,0,0,0]
   this.backgroundColor = [0,0,0,0]
@@ -103,6 +103,7 @@ proto.draw = function() {
   gl.clear(gl.COLOR_BUFFER_BIT)
 
   //Draw grid
+  this.grid.draw()
 
   //Draw traces
 
@@ -146,7 +147,7 @@ proto.update = function(options) {
   for(var i=0; i<2; ++i) {
     var axisTicks = ticks[i]
     for(var j=0; j<axisTicks.length; ++j) {
-      var x = axisTicks[j].t
+      var x = axisTicks[j].x
       bounds[i]   = Math.min(bounds[i],   x)
       bounds[i+2] = Math.max(bounds[i+2], x)
     }
@@ -177,7 +178,8 @@ proto.removeObject = function(object) {
 
 function createGLPlot2D(options) {
   var gl = options.gl
-  var plot = new GLPlot2D(gl)
+  var plot = new GLPlot2D(gl, null)
+  plot.grid = createGrid(plot)
   plot.update(options)
   return plot
 }

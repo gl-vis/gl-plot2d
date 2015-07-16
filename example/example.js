@@ -26,10 +26,8 @@ var options = {
   backgroundColor: [1, 0, 0, 1],
   dataBox:         [-10, -10,  10,  10],
   title:           'chart title',
-  axes:{
-    ticks:  [ makeTicks(10), makeTicks(10) ],
-    labels: ['x', 'y']
-  }
+  ticks:  [ makeTicks(10), makeTicks(10) ],
+  labels: ['x', 'y']
 }
 
 var plot = createPlot(options)
