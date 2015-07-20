@@ -4,21 +4,45 @@ module.exports = createGLPlot2D
 
 var createGrid = require('./lib/grid')
 var createText = require('./lib/text')
+var createLine = require('./lib/line')
 
-function GLPlot2D(gl, grid) {
-  this.gl             = gl
-  this.screenBox      = [0,0,gl.drawingBufferWidth,gl.drawingBufferHeight]
-  this.viewBox        = [-0.75,-0.75, 0.75, 0.75]
-  this.viewPixels     = [0,0,0,0]
-  this.dataBox        = [-10, -10, 10, 10]
-  this._tickBounds    = [Infinity, Infinity, -Infinity, -Infinity]
-  this.gridLineWidth  = [1,1]
-  this.grid           = grid
-  this.pixelRatio     = 1
-  this.objects        = []
+function GLPlot2D(gl) {
+  this.gl               = gl
+  this.screenBox        = [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]
+  this.viewBox          = [0, 0, 0, 0]
+  this.dataBox          = [-10, -10, 10, 10]
 
-  this.borderColor     = [0,0,0,0]
-  this.backgroundColor = [0,0,0,0]
+  this.gridLineWidth    = [1,1]
+  this.gridLineColor    = [[0,0,0,1],
+                           [0,0,0,1]]
+
+  this.pixelRatio       = 1
+
+  this.tickPad          = [15, 15]
+  this.tickEnable       = [true, true]
+  this.tickMirror       = [false, false]
+
+  this.borderColor      = [0,0,0,0]
+  this.backgroundColor  = [0,0,0,0]
+
+  this.zeroLineEnable   = [true,true]
+  this.zeroLineWidth    = [4, 4]
+  this.zeroLineColor    = [0, 0, 0, 1]
+
+  this.borderLineEnable = [true,true,true,true]
+  this.borderLineWidth  = [2,2,2,2]
+  this.borderLineColor  = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+
+  //Drawing parameters
+  this.grid             = null
+  this.text             = null
+  this.line             = null
+  this.objects          = []
+
+  this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
   this.dirty      = false
   this.pickDirty  = false
@@ -56,14 +80,8 @@ function lerp(a, b, t) {
 proto.draw = function() {
   var gl         = this.gl
   var screenBox  = this.screenBox
-  var viewBox    = this.viewBox
-  var viewPixels = this.viewPixels
-
-  //Recalculate view pixels
-  viewPixels[0] = lerp(screenBox[0], screenBox[2], viewBox[0])
-  viewPixels[1] = lerp(screenBox[1], screenBox[3], viewBox[1])
-  viewPixels[2] = lerp(screenBox[0], screenBox[2], viewBox[2])
-  viewPixels[3] = lerp(screenBox[1], screenBox[3], viewBox[3])
+  var viewPixels = this.viewBox
+  var grid       = this.grid
 
   //Set viewport and scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -86,10 +104,7 @@ proto.draw = function() {
     borderColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-  //Draw border lines
-
-  //Draw tick marks
-
+  //Draw tick spikes
 
   //Draw center pane
   gl.scissor(
@@ -110,8 +125,12 @@ proto.draw = function() {
     backgroundColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT)
 
+  gl.enable(gl.BLEND)
+  gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+  gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+
   //Draw grid
-  this.grid.draw()
+  grid.draw()
 
   //Draw traces
 
@@ -127,6 +146,29 @@ proto.draw = function() {
     screenBox[2]-screenBox[0],
     screenBox[3]-screenBox[1])
 
+  //Draw border lines
+  var line = this.line
+  var borderLineEnable = this.borderLineEnable
+  var borderLineWidth  = this.borderLineWidth
+  var borderLineColor  = this.borderLineColor
+  line.bind()
+  if(borderLineEnable[0]) {
+    line.drawLine(viewPixels[0], viewPixels[1], viewPixels[0], viewPixels[3],
+      borderLineWidth[0], borderLineColor[0])
+  }
+  if(borderLineEnable[1]) {
+    line.drawLine(viewPixels[0], viewPixels[1], viewPixels[2], viewPixels[1],
+      borderLineWidth[1], borderLineColor[1])
+  }
+  if(borderLineEnable[2]) {
+    line.drawLine(viewPixels[2], viewPixels[1], viewPixels[2], viewPixels[3],
+      borderLineWidth[2], borderLineColor[2])
+  }
+  if(borderLineEnable[3]) {
+    line.drawLine(viewPixels[0], viewPixels[3], viewPixels[2], viewPixels[3],
+      borderLineWidth[3], borderLineColor[3])
+  }
+
   //Draw text elements
   var text = this.text
   text.bind()
@@ -136,16 +178,13 @@ proto.draw = function() {
   }
   text.drawTitle()
 
+  //Draw spikes
+
   //Draw overlay elements
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
-}
-
-proto.drawPick = function() {
-}
-
-proto.getPick = function(x, y) {
+  gl.disable(gl.BLEND)
 }
 
 proto.update = function(options) {
@@ -153,16 +192,23 @@ proto.update = function(options) {
 
   var gl = this.gl
   this.pixelRatio      = options.pixelRatio || 1
-  this.screenBox       = (options.viewport ||
+  this.screenBox       = (options.screenBox ||
     [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]).slice()
   this.dataBox         = (options.dataBox || [-10,-10,10,10]).slice()
-  this.viewBox         = (options.viewBox || [-0.75,-0.75,0.75,0.75]).slice()
+  this.viewBox         = (options.viewBox ||
+    [0.125*(this.screenBox[2]-this.screenBox[0]),
+     0.125*(this.screenBox[3]-this.screenBox[1]),
+     0.875*(this.screenBox[2]-this.screenBox[0]),
+     0.875*(this.screenBox[3]-this.screenBox[1])]).slice()
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
   this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
   this.tickPad         = (options.tickPad || [15, 15]).slice()
   this.tickEnable      = (options.tickEnable || [true,true]).slice()
   this.tickMirror      = (options.tickMirror || [false,false]).slice()
+  this.axesBorder      = (options.axesBorder ||
+    [true, true, true, true]).slice()
+  this.axesBorderWidth = options.axesBorderWidth || 4
 
   var ticks = options.ticks || [ [], [] ]
 
@@ -199,6 +245,9 @@ proto.update = function(options) {
 }
 
 proto.dispose = function() {
+  this.grid.dispose()
+  this.text.dispose()
+  this.line.dispose()
   for(var i=this.objects.length-1; i>=0; --i) {
     this.objects[i].dispose()
   }
@@ -220,6 +269,7 @@ function createGLPlot2D(options) {
   var plot = new GLPlot2D(gl, null)
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
+  plot.line = createLine(plot)
   plot.update(options)
   return plot
 }

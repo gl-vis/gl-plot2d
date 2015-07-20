@@ -1,9 +1,18 @@
-attribute float linePosition;
+precision mediump float;
 
-uniform mat3 camera;
+attribute vec2 coord;
+
+uniform vec4 screenShape;
 uniform vec2 start, end;
+uniform float width;
+
+vec2 perp(vec2 v) {
+  return vec2(v.y, -v.x);
+}
 
 void main() {
-  vec3 screenHG = camera * vec3(mix(start,end,linePosition), 1);
-  gl_Position = vec4(screenHG.xy, 0, screenHG.z);
+  vec2 shape = screenShape.zw - screenShape.xy;
+  vec2 delta = normalize(shape * perp(end - start)) * width / shape;
+  vec2 offset = (mix(start, end, 0.5 * (coord.y+1.0)) - screenShape.xy) / shape;
+  gl_Position = vec4(coord.x*delta + offset, 0, 1);
 }

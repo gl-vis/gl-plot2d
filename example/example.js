@@ -11,9 +11,9 @@ var gl = canvas.getContext('webgl')
 
 var dataBox = [-10,-10,10,10]
 
-function makeTicks(count) {
+function makeTicks(lo, hi) {
   var result = []
-  for(var i=0; i<count; ++i) {
+  for(var i=lo; i<=hi; ++i) {
     result.push({
       x: i,
       text: i + ''
@@ -26,7 +26,7 @@ var options = {
   gl:      gl,
   dataBox:         [-10, -10,  10,  10],
   title:           'chart title',
-  ticks:  [ makeTicks(10), makeTicks(10) ],
+  ticks:  [ makeTicks(-20,20), makeTicks(-20,20) ],
   labels: ['x', 'y']
 }
 
