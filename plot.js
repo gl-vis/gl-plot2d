@@ -12,6 +12,7 @@ function GLPlot2D(gl) {
   this.viewBox          = [0, 0, 0, 0]
   this.dataBox          = [-10, -10, 10, 10]
 
+  this.gridLineEnable   = [true,true]
   this.gridLineWidth    = [1,1]
   this.gridLineColor    = [[0,0,0,1],
                            [0,0,0,1]]
@@ -51,7 +52,7 @@ function GLPlot2D(gl) {
 
   this.zeroLineEnable   = [true, true]
   this.zeroLineWidth    = [4, 4]
-  this.zeroLineColor    = [0, 0, 0, 1]
+  this.zeroLineColor    = [[0, 0, 0, 1],[0, 0, 0, 1]]
 
   this.borderLineEnable = [true,true,true,true]
   this.borderLineWidth  = [2,2,2,2]
@@ -81,17 +82,6 @@ proto.redraw = function() {
   }
 }
 
-proto.setDataBox = function(box) {
-  var _box = this.dataBox
-  for(var i=0; i<4; ++i) {
-    _box[i] = box[i]
-  }
-  this.setDirty()
-}
-
-proto.setViewport = function(view) {
-}
-
 proto.setDirty = function() {
   this.dirty = this.pickDirty = true
 }
@@ -109,7 +99,11 @@ return function() {
   var gl         = this.gl
   var screenBox  = this.screenBox
   var viewPixels = this.viewBox
+  var dataBox    = this.dataBox
+  var pixelRatio = this.pixelRatio
   var grid       = this.grid
+  var line       = this.line
+  var text       = this.text
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -144,7 +138,6 @@ return function() {
 
   //TODO: Draw tick marks
 
-
   //Draw center pane
   gl.scissor(
     viewPixels[0],
@@ -167,9 +160,36 @@ return function() {
   //Draw grid
   grid.draw()
 
-  //TODO: Draw zero line
+  //Draw zero lines separately
+  var zeroLineEnable = this.zeroLineEnable
+  var zeroLineColor  = this.zeroLineColor
+  var zeroLineWidth  = this.zeroLineWidth
+  if(zeroLineEnable[0] || zeroLineEnable[1]) {
+    line.bind()
+    for(var i=0; i<2; ++i) {
+      if(!zeroLineEnable[i] ||
+        !(dataBox[i] <= 0 && dataBox[i+2] >= 0)) {
+        continue
+      }
 
-  //Draw traces
+      var zeroIntercept = screenBox[i] -
+        dataBox[i] * (screenBox[i+2] - screenBox[i]) / (dataBox[i+2] - dataBox[i])
+
+      if(i === 0) {
+        line.drawLine(
+          zeroIntercept, screenBox[1], zeroIntercept, screenBox[3],
+          zeroLineWidth[i],
+          zeroLineColor[i])
+      } else {
+        line.drawLine(
+          screenBox[0], zeroIntercept, screenBox[2], zeroIntercept,
+          zeroLineWidth[i],
+          zeroLineColor[i])
+      }
+    }
+  }
+
+  //TODO: Draw traces
 
   //Return viewport to default
   gl.viewport(
@@ -184,38 +204,36 @@ return function() {
     screenBox[3]-screenBox[1])
 
   //Draw border lines
-  var line = this.line
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
   var borderLineColor  = this.borderLineColor
   line.bind()
   if(borderLineEnable[0]) {
     line.drawLine(
-      viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1],
-      viewPixels[0], viewPixels[3] + 0.5*borderLineWidth[3],
+      viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
+      viewPixels[0], viewPixels[3] + 0.5*borderLineWidth[3]*pixelRatio,
       borderLineWidth[0], borderLineColor[0])
   }
   if(borderLineEnable[1]) {
     line.drawLine(
-      viewPixels[0] - 0.5*borderLineWidth[0], viewPixels[1],
-      viewPixels[2] + 0.5*borderLineWidth[2], viewPixels[1],
+      viewPixels[0] - 0.5*borderLineWidth[0]*pixelRatio, viewPixels[1],
+      viewPixels[2] + 0.5*borderLineWidth[2]*pixelRatio, viewPixels[1],
       borderLineWidth[1], borderLineColor[1])
   }
   if(borderLineEnable[2]) {
     line.drawLine(
-      viewPixels[2], viewPixels[1] - 0.5*borderLineWidth[1],
-      viewPixels[2], viewPixels[3] + 0.5*borderLineWidth[3],
+      viewPixels[2], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
+      viewPixels[2], viewPixels[3] + 0.5*borderLineWidth[3]*pixelRatio,
       borderLineWidth[2], borderLineColor[2])
   }
   if(borderLineEnable[3]) {
     line.drawLine(
-      viewPixels[0] - 0.5*borderLineWidth[0], viewPixels[3],
-      viewPixels[2] + 0.5*borderLineWidth[2], viewPixels[3],
+      viewPixels[0] - 0.5*borderLineWidth[0]*pixelRatio, viewPixels[3],
+      viewPixels[2] + 0.5*borderLineWidth[2]*pixelRatio, viewPixels[3],
       borderLineWidth[3], borderLineColor[3])
   }
 
   //Draw text elements
-  var text = this.text
   text.bind()
   for(var i=0; i<2; ++i) {
     text.drawTicks(i)
@@ -243,6 +261,10 @@ function deepClone(array) {
   return result
 }
 
+function compareTicks(a, b) {
+  return a.x - b.x
+}
+
 proto.update = function(options) {
   options = options || {}
 
@@ -263,11 +285,18 @@ proto.update = function(options) {
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
 
+  this.gridLineEnable  = (options.gridLineEnable || [true,true]).slice()
   this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
   this.gridLineColor   = deepClone(options.gridLine || [[0.5,0.5,0.5,1],[0.5,0.5,0.5,1]])
 
+  this.zeroLineEnable   = (options.zeroLineEnable || [true, true]).slice()
+  this.zeroLineWidth    = (options.zeroLineWidth || [4, 4]).slice()
+  this.zeroLineColor    = deepClone(options.zeroLineColor || [[0, 0, 0, 1],[0, 0, 0, 1]])
+
+
   this.tickMarkLength   = (options.tickMarkLength || [0,0,0,0]).slice()
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
+
 
   this.titleCenter      = (options.titleCenter || [
     0.5*(screenBox[0]+screenBox[2]),screenBox[3]-20]).slice()
@@ -301,12 +330,13 @@ proto.update = function(options) {
   bounds[0] = bounds[1] =  Infinity
   bounds[2] = bounds[3] = -Infinity
   for(var i=0; i<2; ++i) {
-    var axisTicks = ticks[i]
-    for(var j=0; j<axisTicks.length; ++j) {
-      var x = axisTicks[j].x
-      bounds[i]   = Math.min(bounds[i],   x)
-      bounds[i+2] = Math.max(bounds[i+2], x)
+    var axisTicks = ticks[i].slice(0)
+    if(axisTicks.length === 0) {
+      continue
     }
+    axisTicks.sort(compareTicks)
+    bounds[i]   = axisTicks[0].x
+    bounds[i+2] = axisTicks[axisTicks.length-1].x
   }
 
   //Update grid

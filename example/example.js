@@ -51,7 +51,7 @@ function render() {
   requestAnimationFrame(render)
   plot.screenBox[2] = gl.drawingBufferWidth
   plot.screenBox[3] = gl.drawingBufferHeight
-  plot.setDataBox(dataBox)
+  plot.dataBox = dataBox
   plot.draw()
 }
 
