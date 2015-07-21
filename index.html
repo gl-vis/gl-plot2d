@@ -10,15 +10,21 @@
 var fit = require('canvas-fit')
 var mouseWheel = require('mouse-wheel')
 var mouseChange = require('mouse-change')
+var gaussRandom = require('gauss-random')
+var createScatter = require('gl-scatter2d')
 var createPlot = require('../plot')
 
 var canvas = document.createElement('canvas')
 document.body.appendChild(canvas)
-window.addEventListener('resize', fit(canvas), false)
+window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), false)
 
 var gl = canvas.getContext('webgl')
 
-var dataBox = [-10,-10,10,10]
+var POINT_COUNT = 1e7
+
+var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
+
+var dataBox = [-10,-10/aspect,10,10/aspect]
 
 function makeTicks(lo, hi) {
   var result = []
@@ -34,15 +40,31 @@ function makeTicks(lo, hi) {
 var options = {
   gl:      gl,
   dataBox:         [-10, -10,  10,  10],
-  title:           'chart title',
+  title:           '10 million points',
   ticks:  [ makeTicks(-20,20), makeTicks(-20,20) ],
-  labels: ['x', 'y']
+  labels: ['x', 'y'],
+  pixelRatio:    +window.devicePixelRatio
 }
 
 var plot = createPlot(options)
 
+var positions = new Float32Array(2 * POINT_COUNT)
+for(var i=0; i<2*POINT_COUNT; ++i) {
+  positions[i] = gaussRandom()
+}
+
+var scatter = createScatter(plot, {
+  positions: positions,
+  size: 12
+})
+
+plot.addObject(scatter)
+
 var lastX = 0, lastY = 0
 mouseChange(function(buttons, x, y) {
+  x *= plot.pixelRatio
+  y *= plot.pixelRatio
+
   if(buttons & 1) {
     var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
     var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
@@ -56,6 +78,20 @@ mouseChange(function(buttons, x, y) {
   lastY = y
 })
 
+mouseWheel(function(dx, dy, dz) {
+  var scale = Math.exp(0.1 * dy / gl.drawingBufferHeight)
+
+  var cx = (lastX - plot.viewBox[0]) / (plot.viewBox[2] - plot.viewBox[0]) * (dataBox[2] - dataBox[0]) + dataBox[0]
+  var cy = (plot.viewBox[1] - lastY) / (plot.viewBox[3] - plot.viewBox[1]) * (dataBox[3] - dataBox[1]) + dataBox[3]
+
+  dataBox[0] = (dataBox[0] - cx) * scale + cx
+  dataBox[1] = (dataBox[1] - cy) * scale + cy
+  dataBox[2] = (dataBox[2] - cx) * scale + cx
+  dataBox[3] = (dataBox[3] - cy) * scale + cy
+
+  return true
+})
+
 function render() {
   requestAnimationFrame(render)
   plot.screenBox[2] = gl.drawingBufferWidth
@@ -66,7 +102,7 @@ function render() {
 
 render()
 
-},{"../plot":159,"canvas-fit":7,"mouse-change":30,"mouse-wheel":34}],2:[function(require,module,exports){
+},{"../plot":300,"canvas-fit":7,"gauss-random":9,"gl-scatter2d":161,"mouse-change":171,"mouse-wheel":175}],2:[function(require,module,exports){
 'use strict'
 
 module.exports = createGrid
@@ -190,7 +226,7 @@ function createGrid(plot) {
   return grid
 }
 
-},{"./shaders":4,"gl-buffer":9,"gl-shader":21}],3:[function(require,module,exports){
+},{"./shaders":4,"gl-buffer":10,"gl-shader":162}],3:[function(require,module,exports){
 'use strict'
 
 module.exports = createLines
@@ -255,7 +291,7 @@ function createLines(plot) {
   return lines
 }
 
-},{"./shaders":4,"gl-buffer":9,"gl-shader":21}],4:[function(require,module,exports){
+},{"./shaders":4,"gl-buffer":10,"gl-shader":162}],4:[function(require,module,exports){
 'use strict'
 
 
@@ -553,7 +589,7 @@ function createTextElements(plot) {
   return text
 }
 
-},{"./shaders":4,"binary-search-bounds":6,"gl-buffer":9,"gl-shader":21,"text-cache":158}],6:[function(require,module,exports){
+},{"./shaders":4,"binary-search-bounds":6,"gl-buffer":10,"gl-shader":162,"text-cache":299}],6:[function(require,module,exports){
 "use strict"
 
 function compileSearch(funcName, predicate, reversed, extraArgs, earlyOut) {
@@ -686,6 +722,14 @@ function parse(prop) {
 }
 
 },{}],9:[function(require,module,exports){
+'use strict'
+
+module.exports = gaussRandom
+
+function gaussRandom() {
+  return Math.sqrt(-2.0 * Math.log(Math.random())) * Math.cos(2.0 * Math.PI * Math.random())
+}
+},{}],10:[function(require,module,exports){
 "use strict"
 
 var pool = require("typedarray-pool")
@@ -839,7 +883,7 @@ function createBuffer(gl, data, type, usage) {
 
 module.exports = createBuffer
 
-},{"ndarray":15,"ndarray-ops":10,"typedarray-pool":20}],10:[function(require,module,exports){
+},{"ndarray":16,"ndarray-ops":11,"typedarray-pool":21}],11:[function(require,module,exports){
 "use strict"
 
 var compile = require("cwise-compiler")
@@ -1302,7 +1346,7 @@ exports.equals = compile({
 
 
 
-},{"cwise-compiler":11}],11:[function(require,module,exports){
+},{"cwise-compiler":12}],12:[function(require,module,exports){
 "use strict"
 
 var createThunk = require("./lib/thunk.js")
@@ -1413,7 +1457,7 @@ function compileCwise(user_args) {
 
 module.exports = compileCwise
 
-},{"./lib/thunk.js":13}],12:[function(require,module,exports){
+},{"./lib/thunk.js":14}],13:[function(require,module,exports){
 "use strict"
 
 var uniq = require("uniq")
@@ -1769,7 +1813,7 @@ function generateCWiseOp(proc, typesig) {
 }
 module.exports = generateCWiseOp
 
-},{"uniq":14}],13:[function(require,module,exports){
+},{"uniq":15}],14:[function(require,module,exports){
 "use strict"
 
 // The function below is called when constructing a cwise function object, and does the following:
@@ -1857,7 +1901,7 @@ function createThunk(proc) {
 
 module.exports = createThunk
 
-},{"./compile.js":12}],14:[function(require,module,exports){
+},{"./compile.js":13}],15:[function(require,module,exports){
 "use strict"
 
 function unique_pred(list, compare) {
@@ -1916,7 +1960,7 @@ function unique(list, compare, sorted) {
 
 module.exports = unique
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 var iota = require("iota-array")
 var isBuffer = require("is-buffer")
 
@@ -2261,7 +2305,7 @@ function wrappedNDArrayCtor(data, shape, stride, offset) {
 
 module.exports = wrappedNDArrayCtor
 
-},{"iota-array":16,"is-buffer":17}],16:[function(require,module,exports){
+},{"iota-array":17,"is-buffer":18}],17:[function(require,module,exports){
 "use strict"
 
 function iota(n) {
@@ -2273,7 +2317,7 @@ function iota(n) {
 }
 
 module.exports = iota
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /**
  * Determine if an object is Buffer
  *
@@ -2292,7 +2336,7 @@ module.exports = function (obj) {
   )
 }
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /**
  * Bit twiddling hacks for JavaScript.
  *
@@ -2498,7 +2542,7 @@ exports.nextCombination = function(v) {
 }
 
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 "use strict"
 
 function dupe_array(count, value, i) {
@@ -2548,7 +2592,7 @@ function dupe(count, value) {
 }
 
 module.exports = dupe
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (global,Buffer){
 'use strict'
 
@@ -2765,7 +2809,683 @@ exports.clearCache = function clearCache() {
   }
 }
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"bit-twiddle":18,"buffer":160,"dup":19}],21:[function(require,module,exports){
+},{"bit-twiddle":19,"buffer":301,"dup":20}],22:[function(require,module,exports){
+
+
+exports.pointVertex       = "#define GLSLIFY 1\n\nprecision mediump float;\n\nattribute vec2 position;\n\nuniform mat3 matrix;\nuniform float pointSize;\n\nvoid main() {\n  vec3 hgPosition = matrix * vec3(position, 1);\n  gl_Position  = vec4(hgPosition.xy, 0, hgPosition.z);\n  gl_PointSize = pointSize;\n}\n"
+exports.pointFragment     = "#define GLSLIFY 1\n\nprecision mediump float;\n\nuniform vec4 color, borderColor;\nuniform float centerFraction;\n\nfloat smoothStep(float x, float y) {\n  return 1.0 / (1.0 + exp(50.0*(x - y)));\n}\n\nvoid main() {\n  float radius = length(2.0*gl_PointCoord.xy-1.0);\n  if(radius > 1.0) {\n    discard;\n  }\n  gl_FragColor = mix(borderColor, color, smoothStep(radius, centerFraction));\n}\n"
+
+},{}],23:[function(require,module,exports){
+'use strict'
+
+module.exports = sortPoints
+
+function PointInterval(scale, count) {
+  this.scale = scale
+  this.count = count
+}
+
+function partitionPoints(points, start, end, lox, loy, hix, hiy) {
+  var mid = start
+  for(var i=start; i<end; ++i) {
+    var x = points[2*i]
+    var y = points[2*i+1]
+    if(lox <= x && x <= hix &&
+       loy <= y && y <= hiy) {
+      if(i === mid) {
+        mid += 1
+      } else {
+        points[2*i]     = points[2*mid]
+        points[2*i+1]   = points[2*mid+1]
+        points[2*mid]   = x
+        points[2*mid+1] = y
+        mid += 1
+      }
+    }
+  }
+  return mid
+}
+
+function VisitRecord(x, y, diam, start, end) {
+  this.x = x
+  this.y = y
+  this.diam = diam
+  this.start = start
+  this.end = end
+}
+
+function sortPoints(points, subdiv, output, bounds) {
+  var n    = points.length >>> 1
+  if(n < 1) {
+    return []
+  }
+
+  var lox =  Infinity, loy =  Infinity
+  var hix = -Infinity, hiy = -Infinity
+  for(var i=0; i<n; ++i) {
+    var x = points[2*i]
+    var y = points[2*i+1]
+    lox = Math.min(lox, x)
+    hix = Math.max(hix, x)
+    loy = Math.min(loy, y)
+    hiy = Math.max(hiy, y)
+  }
+  var scaleX = 1.0 / (hix - lox)
+  var scaleY = 1.0 / (hiy - loy)
+  var diam = Math.max(hix - lox, hiy - loy)
+
+  bounds[0] = lox
+  bounds[1] = loy
+  bounds[2] = hix
+  bounds[3] = hiy
+
+  var toVisit = [ new VisitRecord(lox, loy, diam, 0, n) ]
+  var ptr = n-1
+  var qptr = 0
+
+  var scales = [ new PointInterval(diam, n-1) ]
+  var lastScale = diam
+
+  while(qptr < toVisit.length) {
+    var head = toVisit[qptr++]
+    var x = head.x
+    var y = head.y
+    var d = head.diam
+    var start = head.start
+    var end = head.end
+    output[2*ptr]   = (points[2*start]   - lox) * scaleX
+    output[2*ptr+1] = (points[2*start+1] - loy) * scaleY
+    ptr   -= 1
+    start += 1
+    if(d < lastScale) {
+      scales.push(new PointInterval(d, ptr))
+    }
+    lastScale = d
+    var s = d / subdiv
+    for(var i=0; i<=subdiv; ++i) {
+      for(var j=0; j<=subdiv; ++j) {
+        var x0 = x + s * i
+        var y0 = y + s * j
+        var mid = partitionPoints(
+          points,
+          start,
+          end,
+          x0, y0,
+          x + s*(i+1), y + s*(j+1))
+        if(start < mid) {
+          toVisit.push(new VisitRecord(x0, y0, s, start, mid))
+          start = mid
+        }
+      }
+    }
+  }
+
+  scales.push(new PointInterval(lastScale, 0))
+
+  return scales
+}
+
+},{}],24:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],25:[function(require,module,exports){
+arguments[4][10][0].apply(exports,arguments)
+},{"dup":10,"ndarray":31,"ndarray-ops":26,"typedarray-pool":36}],26:[function(require,module,exports){
+arguments[4][11][0].apply(exports,arguments)
+},{"cwise-compiler":27,"dup":11}],27:[function(require,module,exports){
+"use strict"
+
+var createThunk = require("./lib/thunk.js")
+
+function Procedure() {
+  this.argTypes = []
+  this.shimArgs = []
+  this.arrayArgs = []
+  this.arrayBlockIndices = []
+  this.scalarArgs = []
+  this.offsetArgs = []
+  this.offsetArgIndex = []
+  this.indexArgs = []
+  this.shapeArgs = []
+  this.funcName = ""
+  this.pre = null
+  this.body = null
+  this.post = null
+  this.debug = false
+}
+
+function compileCwise(user_args) {
+  //Create procedure
+  var proc = new Procedure()
+  
+  //Parse blocks
+  proc.pre    = user_args.pre
+  proc.body   = user_args.body
+  proc.post   = user_args.post
+
+  //Parse arguments
+  var proc_args = user_args.args.slice(0)
+  proc.argTypes = proc_args
+  for(var i=0; i<proc_args.length; ++i) {
+    var arg_type = proc_args[i]
+    if(arg_type === "array" || (typeof arg_type === "object" && arg_type.blockIndices)) {
+      proc.argTypes[i] = "array"
+      proc.arrayArgs.push(i)
+      proc.arrayBlockIndices.push(arg_type.blockIndices ? arg_type.blockIndices : 0)
+      proc.shimArgs.push("array" + i)
+      if(i < proc.pre.args.length && proc.pre.args[i].count>0) {
+        throw new Error("cwise: pre() block may not reference array args")
+      }
+      if(i < proc.post.args.length && proc.post.args[i].count>0) {
+        throw new Error("cwise: post() block may not reference array args")
+      }
+    } else if(arg_type === "scalar") {
+      proc.scalarArgs.push(i)
+      proc.shimArgs.push("scalar" + i)
+    } else if(arg_type === "index") {
+      proc.indexArgs.push(i)
+      if(i < proc.pre.args.length && proc.pre.args[i].count > 0) {
+        throw new Error("cwise: pre() block may not reference array index")
+      }
+      if(i < proc.body.args.length && proc.body.args[i].lvalue) {
+        throw new Error("cwise: body() block may not write to array index")
+      }
+      if(i < proc.post.args.length && proc.post.args[i].count > 0) {
+        throw new Error("cwise: post() block may not reference array index")
+      }
+    } else if(arg_type === "shape") {
+      proc.shapeArgs.push(i)
+      if(i < proc.pre.args.length && proc.pre.args[i].lvalue) {
+        throw new Error("cwise: pre() block may not write to array shape")
+      }
+      if(i < proc.body.args.length && proc.body.args[i].lvalue) {
+        throw new Error("cwise: body() block may not write to array shape")
+      }
+      if(i < proc.post.args.length && proc.post.args[i].lvalue) {
+        throw new Error("cwise: post() block may not write to array shape")
+      }
+    } else if(typeof arg_type === "object" && arg_type.offset) {
+      proc.argTypes[i] = "offset"
+      proc.offsetArgs.push({ array: arg_type.array, offset:arg_type.offset })
+      proc.offsetArgIndex.push(i)
+    } else {
+      throw new Error("cwise: Unknown argument type " + proc_args[i])
+    }
+  }
+  
+  //Make sure at least one array argument was specified
+  if(proc.arrayArgs.length <= 0) {
+    throw new Error("cwise: No array arguments specified")
+  }
+  
+  //Make sure arguments are correct
+  if(proc.pre.args.length > proc_args.length) {
+    throw new Error("cwise: Too many arguments in pre() block")
+  }
+  if(proc.body.args.length > proc_args.length) {
+    throw new Error("cwise: Too many arguments in body() block")
+  }
+  if(proc.post.args.length > proc_args.length) {
+    throw new Error("cwise: Too many arguments in post() block")
+  }
+
+  //Check debug flag
+  proc.debug = !!user_args.printCode || !!user_args.debug
+  
+  //Retrieve name
+  proc.funcName = user_args.funcName || "cwise"
+  
+  //Read in block size
+  proc.blockSize = user_args.blockSize || 64
+
+  return createThunk(proc)
+}
+
+module.exports = compileCwise
+
+},{"./lib/thunk.js":29}],28:[function(require,module,exports){
+"use strict"
+
+var uniq = require("uniq")
+
+// This function generates very simple loops analogous to how you typically traverse arrays (the outermost loop corresponds to the slowest changing index, the innermost loop to the fastest changing index)
+// TODO: If two arrays have the same strides (and offsets) there is potential for decreasing the number of "pointers" and related variables. The drawback is that the type signature would become more specific and that there would thus be less potential for caching, but it might still be worth it, especially when dealing with large numbers of arguments.
+function innerFill(order, proc, body) {
+  var dimension = order.length
+    , nargs = proc.arrayArgs.length
+    , has_index = proc.indexArgs.length>0
+    , code = []
+    , vars = []
+    , idx=0, pidx=0, i, j
+  for(i=0; i<dimension; ++i) { // Iteration variables
+    vars.push(["i",i,"=0"].join(""))
+  }
+  //Compute scan deltas
+  for(j=0; j<nargs; ++j) {
+    for(i=0; i<dimension; ++i) {
+      pidx = idx
+      idx = order[i]
+      if(i === 0) { // The innermost/fastest dimension's delta is simply its stride
+        vars.push(["d",j,"s",i,"=t",j,"p",idx].join(""))
+      } else { // For other dimensions the delta is basically the stride minus something which essentially "rewinds" the previous (more inner) dimension
+        vars.push(["d",j,"s",i,"=(t",j,"p",idx,"-s",pidx,"*t",j,"p",pidx,")"].join(""))
+      }
+    }
+  }
+  code.push("var " + vars.join(","))
+  //Scan loop
+  for(i=dimension-1; i>=0; --i) { // Start at largest stride and work your way inwards
+    idx = order[i]
+    code.push(["for(i",i,"=0;i",i,"<s",idx,";++i",i,"){"].join(""))
+  }
+  //Push body of inner loop
+  code.push(body)
+  //Advance scan pointers
+  for(i=0; i<dimension; ++i) {
+    pidx = idx
+    idx = order[i]
+    for(j=0; j<nargs; ++j) {
+      code.push(["p",j,"+=d",j,"s",i].join(""))
+    }
+    if(has_index) {
+      if(i > 0) {
+        code.push(["index[",pidx,"]-=s",pidx].join(""))
+      }
+      code.push(["++index[",idx,"]"].join(""))
+    }
+    code.push("}")
+  }
+  return code.join("\n")
+}
+
+// Generate "outer" loops that loop over blocks of data, applying "inner" loops to the blocks by manipulating the local variables in such a way that the inner loop only "sees" the current block.
+// TODO: If this is used, then the previous declaration (done by generateCwiseOp) of s* is essentially unnecessary.
+//       I believe the s* are not used elsewhere (in particular, I don't think they're used in the pre/post parts and "shape" is defined independently), so it would be possible to make defining the s* dependent on what loop method is being used.
+function outerFill(matched, order, proc, body) {
+  var dimension = order.length
+    , nargs = proc.arrayArgs.length
+    , blockSize = proc.blockSize
+    , has_index = proc.indexArgs.length > 0
+    , code = []
+  for(var i=0; i<nargs; ++i) {
+    code.push(["var offset",i,"=p",i].join(""))
+  }
+  //Generate loops for unmatched dimensions
+  // The order in which these dimensions are traversed is fairly arbitrary (from small stride to large stride, for the first argument)
+  // TODO: It would be nice if the order in which these loops are placed would also be somehow "optimal" (at the very least we should check that it really doesn't hurt us if they're not).
+  for(var i=matched; i<dimension; ++i) {
+    code.push(["for(var j"+i+"=SS[", order[i], "]|0;j", i, ">0;){"].join("")) // Iterate back to front
+    code.push(["if(j",i,"<",blockSize,"){"].join("")) // Either decrease j by blockSize (s = blockSize), or set it to zero (after setting s = j).
+    code.push(["s",order[i],"=j",i].join(""))
+    code.push(["j",i,"=0"].join(""))
+    code.push(["}else{s",order[i],"=",blockSize].join(""))
+    code.push(["j",i,"-=",blockSize,"}"].join(""))
+    if(has_index) {
+      code.push(["index[",order[i],"]=j",i].join(""))
+    }
+  }
+  for(var i=0; i<nargs; ++i) {
+    var indexStr = ["offset"+i]
+    for(var j=matched; j<dimension; ++j) {
+      indexStr.push(["j",j,"*t",i,"p",order[j]].join(""))
+    }
+    code.push(["p",i,"=(",indexStr.join("+"),")"].join(""))
+  }
+  code.push(innerFill(order, proc, body))
+  for(var i=matched; i<dimension; ++i) {
+    code.push("}")
+  }
+  return code.join("\n")
+}
+
+//Count the number of compatible inner orders
+// This is the length of the longest common prefix of the arrays in orders.
+// Each array in orders lists the dimensions of the correspond ndarray in order of increasing stride.
+// This is thus the maximum number of dimensions that can be efficiently traversed by simple nested loops for all arrays.
+function countMatches(orders) {
+  var matched = 0, dimension = orders[0].length
+  while(matched < dimension) {
+    for(var j=1; j<orders.length; ++j) {
+      if(orders[j][matched] !== orders[0][matched]) {
+        return matched
+      }
+    }
+    ++matched
+  }
+  return matched
+}
+
+//Processes a block according to the given data types
+// Replaces variable names by different ones, either "local" ones (that are then ferried in and out of the given array) or ones matching the arguments that the function performing the ultimate loop will accept.
+function processBlock(block, proc, dtypes) {
+  var code = block.body
+  var pre = []
+  var post = []
+  for(var i=0; i<block.args.length; ++i) {
+    var carg = block.args[i]
+    if(carg.count <= 0) {
+      continue
+    }
+    var re = new RegExp(carg.name, "g")
+    var ptrStr = ""
+    var arrNum = proc.arrayArgs.indexOf(i)
+    switch(proc.argTypes[i]) {
+      case "offset":
+        var offArgIndex = proc.offsetArgIndex.indexOf(i)
+        var offArg = proc.offsetArgs[offArgIndex]
+        arrNum = offArg.array
+        ptrStr = "+q" + offArgIndex // Adds offset to the "pointer" in the array
+      case "array":
+        ptrStr = "p" + arrNum + ptrStr
+        var localStr = "l" + i
+        var arrStr = "a" + arrNum
+        if (proc.arrayBlockIndices[arrNum] === 0) { // Argument to body is just a single value from this array
+          if(carg.count === 1) { // Argument/array used only once(?)
+            if(dtypes[arrNum] === "generic") {
+              if(carg.lvalue) {
+                pre.push(["var ", localStr, "=", arrStr, ".get(", ptrStr, ")"].join("")) // Is this necessary if the argument is ONLY used as an lvalue? (keep in mind that we can have a += something, so we would actually need to check carg.rvalue)
+                code = code.replace(re, localStr)
+                post.push([arrStr, ".set(", ptrStr, ",", localStr,")"].join(""))
+              } else {
+                code = code.replace(re, [arrStr, ".get(", ptrStr, ")"].join(""))
+              }
+            } else {
+              code = code.replace(re, [arrStr, "[", ptrStr, "]"].join(""))
+            }
+          } else if(dtypes[arrNum] === "generic") {
+            pre.push(["var ", localStr, "=", arrStr, ".get(", ptrStr, ")"].join("")) // TODO: Could we optimize by checking for carg.rvalue?
+            code = code.replace(re, localStr)
+            if(carg.lvalue) {
+              post.push([arrStr, ".set(", ptrStr, ",", localStr,")"].join(""))
+            }
+          } else {
+            pre.push(["var ", localStr, "=", arrStr, "[", ptrStr, "]"].join("")) // TODO: Could we optimize by checking for carg.rvalue?
+            code = code.replace(re, localStr)
+            if(carg.lvalue) {
+              post.push([arrStr, "[", ptrStr, "]=", localStr].join(""))
+            }
+          }
+        } else { // Argument to body is a "block"
+          var reStrArr = [carg.name], ptrStrArr = [ptrStr]
+          for(var j=0; j<Math.abs(proc.arrayBlockIndices[arrNum]); j++) {
+            reStrArr.push("\\s*\\[([^\\]]+)\\]")
+            ptrStrArr.push("$" + (j+1) + "*t" + arrNum + "b" + j) // Matched index times stride
+          }
+          re = new RegExp(reStrArr.join(""), "g")
+          ptrStr = ptrStrArr.join("+")
+          if(dtypes[arrNum] === "generic") {
+            /*if(carg.lvalue) {
+              pre.push(["var ", localStr, "=", arrStr, ".get(", ptrStr, ")"].join("")) // Is this necessary if the argument is ONLY used as an lvalue? (keep in mind that we can have a += something, so we would actually need to check carg.rvalue)
+              code = code.replace(re, localStr)
+              post.push([arrStr, ".set(", ptrStr, ",", localStr,")"].join(""))
+            } else {
+              code = code.replace(re, [arrStr, ".get(", ptrStr, ")"].join(""))
+            }*/
+            throw new Error("cwise: Generic arrays not supported in combination with blocks!")
+          } else {
+            // This does not produce any local variables, even if variables are used multiple times. It would be possible to do so, but it would complicate things quite a bit.
+            code = code.replace(re, [arrStr, "[", ptrStr, "]"].join(""))
+          }
+        }
+      break
+      case "scalar":
+        code = code.replace(re, "Y" + proc.scalarArgs.indexOf(i))
+      break
+      case "index":
+        code = code.replace(re, "index")
+      break
+      case "shape":
+        code = code.replace(re, "shape")
+      break
+    }
+  }
+  return [pre.join("\n"), code, post.join("\n")].join("\n").trim()
+}
+
+function typeSummary(dtypes) {
+  var summary = new Array(dtypes.length)
+  var allEqual = true
+  for(var i=0; i<dtypes.length; ++i) {
+    var t = dtypes[i]
+    var digits = t.match(/\d+/)
+    if(!digits) {
+      digits = ""
+    } else {
+      digits = digits[0]
+    }
+    if(t.charAt(0) === 0) {
+      summary[i] = "u" + t.charAt(1) + digits
+    } else {
+      summary[i] = t.charAt(0) + digits
+    }
+    if(i > 0) {
+      allEqual = allEqual && summary[i] === summary[i-1]
+    }
+  }
+  if(allEqual) {
+    return summary[0]
+  }
+  return summary.join("")
+}
+
+//Generates a cwise operator
+function generateCWiseOp(proc, typesig) {
+
+  //Compute dimension
+  // Arrays get put first in typesig, and there are two entries per array (dtype and order), so this gets the number of dimensions in the first array arg.
+  var dimension = (typesig[1].length - Math.abs(proc.arrayBlockIndices[0]))|0
+  var orders = new Array(proc.arrayArgs.length)
+  var dtypes = new Array(proc.arrayArgs.length)
+  for(var i=0; i<proc.arrayArgs.length; ++i) {
+    dtypes[i] = typesig[2*i]
+    orders[i] = typesig[2*i+1]
+  }
+  
+  //Determine where block and loop indices start and end
+  var blockBegin = [], blockEnd = [] // These indices are exposed as blocks
+  var loopBegin = [], loopEnd = [] // These indices are iterated over
+  var loopOrders = [] // orders restricted to the loop indices
+  for(var i=0; i<proc.arrayArgs.length; ++i) {
+    if (proc.arrayBlockIndices[i]<0) {
+      loopBegin.push(0)
+      loopEnd.push(dimension)
+      blockBegin.push(dimension)
+      blockEnd.push(dimension+proc.arrayBlockIndices[i])
+    } else {
+      loopBegin.push(proc.arrayBlockIndices[i]) // Non-negative
+      loopEnd.push(proc.arrayBlockIndices[i]+dimension)
+      blockBegin.push(0)
+      blockEnd.push(proc.arrayBlockIndices[i])
+    }
+    var newOrder = []
+    for(var j=0; j<orders[i].length; j++) {
+      if (loopBegin[i]<=orders[i][j] && orders[i][j]<loopEnd[i]) {
+        newOrder.push(orders[i][j]-loopBegin[i]) // If this is a loop index, put it in newOrder, subtracting loopBegin, to make sure that all loopOrders are using a common set of indices.
+      }
+    }
+    loopOrders.push(newOrder)
+  }
+
+  //First create arguments for procedure
+  var arglist = ["SS"] // SS is the overall shape over which we iterate
+  var code = ["'use strict'"]
+  var vars = []
+  
+  for(var j=0; j<dimension; ++j) {
+    vars.push(["s", j, "=SS[", j, "]"].join("")) // The limits for each dimension.
+  }
+  for(var i=0; i<proc.arrayArgs.length; ++i) {
+    arglist.push("a"+i) // Actual data array
+    arglist.push("t"+i) // Strides
+    arglist.push("p"+i) // Offset in the array at which the data starts (also used for iterating over the data)
+    
+    for(var j=0; j<dimension; ++j) { // Unpack the strides into vars for looping
+      vars.push(["t",i,"p",j,"=t",i,"[",loopBegin[i]+j,"]"].join(""))
+    }
+    
+    for(var j=0; j<Math.abs(proc.arrayBlockIndices[i]); ++j) { // Unpack the strides into vars for block iteration
+      vars.push(["t",i,"b",j,"=t",i,"[",blockBegin[i]+j,"]"].join(""))
+    }
+  }
+  for(var i=0; i<proc.scalarArgs.length; ++i) {
+    arglist.push("Y" + i)
+  }
+  if(proc.shapeArgs.length > 0) {
+    vars.push("shape=SS.slice(0)") // Makes the shape over which we iterate available to the user defined functions (so you can use width/height for example)
+  }
+  if(proc.indexArgs.length > 0) {
+    // Prepare an array to keep track of the (logical) indices, initialized to dimension zeroes.
+    var zeros = new Array(dimension)
+    for(var i=0; i<dimension; ++i) {
+      zeros[i] = "0"
+    }
+    vars.push(["index=[", zeros.join(","), "]"].join(""))
+  }
+  for(var i=0; i<proc.offsetArgs.length; ++i) { // Offset arguments used for stencil operations
+    var off_arg = proc.offsetArgs[i]
+    var init_string = []
+    for(var j=0; j<off_arg.offset.length; ++j) {
+      if(off_arg.offset[j] === 0) {
+        continue
+      } else if(off_arg.offset[j] === 1) {
+        init_string.push(["t", off_arg.array, "p", j].join(""))      
+      } else {
+        init_string.push([off_arg.offset[j], "*t", off_arg.array, "p", j].join(""))
+      }
+    }
+    if(init_string.length === 0) {
+      vars.push("q" + i + "=0")
+    } else {
+      vars.push(["q", i, "=", init_string.join("+")].join(""))
+    }
+  }
+
+  //Prepare this variables
+  var thisVars = uniq([].concat(proc.pre.thisVars)
+                      .concat(proc.body.thisVars)
+                      .concat(proc.post.thisVars))
+  vars = vars.concat(thisVars)
+  code.push("var " + vars.join(","))
+  for(var i=0; i<proc.arrayArgs.length; ++i) {
+    code.push("p"+i+"|=0")
+  }
+  
+  //Inline prelude
+  if(proc.pre.body.length > 3) {
+    code.push(processBlock(proc.pre, proc, dtypes))
+  }
+
+  //Process body
+  var body = processBlock(proc.body, proc, dtypes)
+  var matched = countMatches(loopOrders)
+  if(matched < dimension) {
+    code.push(outerFill(matched, loopOrders[0], proc, body)) // TODO: Rather than passing loopOrders[0], it might be interesting to look at passing an order that represents the majority of the arguments for example.
+  } else {
+    code.push(innerFill(loopOrders[0], proc, body))
+  }
+
+  //Inline epilog
+  if(proc.post.body.length > 3) {
+    code.push(processBlock(proc.post, proc, dtypes))
+  }
+  
+  if(proc.debug) {
+    console.log("-----Generated cwise routine for ", typesig, ":\n" + code.join("\n") + "\n----------")
+  }
+  
+  var loopName = [(proc.funcName||"unnamed"), "_cwise_loop_", orders[0].join("s"),"m",matched,typeSummary(dtypes)].join("")
+  var f = new Function(["function ",loopName,"(", arglist.join(","),"){", code.join("\n"),"} return ", loopName].join(""))
+  return f()
+}
+module.exports = generateCWiseOp
+
+},{"uniq":30}],29:[function(require,module,exports){
+"use strict"
+
+// The function below is called when constructing a cwise function object, and does the following:
+// A function object is constructed which accepts as argument a compilation function and returns another function.
+// It is this other function that is eventually returned by createThunk, and this function is the one that actually
+// checks whether a certain pattern of arguments has already been used before and compiles new loops as needed.
+// The compilation passed to the first function object is used for compiling new functions.
+// Once this function object is created, it is called with compile as argument, where the first argument of compile
+// is bound to "proc" (essentially containing a preprocessed version of the user arguments to cwise).
+// So createThunk roughly works like this:
+// function createThunk(proc) {
+//   var thunk = function(compileBound) {
+//     var CACHED = {}
+//     return function(arrays and scalars) {
+//       if (dtype and order of arrays in CACHED) {
+//         var func = CACHED[dtype and order of arrays]
+//       } else {
+//         var func = CACHED[dtype and order of arrays] = compileBound(dtype and order of arrays)
+//       }
+//       return func(arrays and scalars)
+//     }
+//   }
+//   return thunk(compile.bind1(proc))
+// }
+
+var compile = require("./compile.js")
+
+function createThunk(proc) {
+  var code = ["'use strict'", "var CACHED={}"]
+  var vars = []
+  var thunkName = proc.funcName + "_cwise_thunk"
+  
+  //Build thunk
+  code.push(["return function ", thunkName, "(", proc.shimArgs.join(","), "){"].join(""))
+  var typesig = []
+  var string_typesig = []
+  var proc_args = [["array",proc.arrayArgs[0],".shape.slice(", // Slice shape so that we only retain the shape over which we iterate (which gets passed to the cwise operator as SS).
+                    Math.max(0,proc.arrayBlockIndices[i]),proc.arrayBlockIndices[i]<0?(","+proc.arrayBlockIndices[i]+")"):")"].join("")]
+  for(var i=0; i<proc.arrayArgs.length; ++i) {
+    var j = proc.arrayArgs[i]
+    vars.push(["t", j, "=array", j, ".dtype,",
+               "r", j, "=array", j, ".order"].join(""))
+    typesig.push("t" + j)
+    typesig.push("r" + j)
+    string_typesig.push("t"+j)
+    string_typesig.push("r"+j+".join()")
+    proc_args.push("array" + j + ".data")
+    proc_args.push("array" + j + ".stride")
+    proc_args.push("array" + j + ".offset|0")
+  }
+  for(var i=0; i<proc.scalarArgs.length; ++i) {
+    proc_args.push("scalar" + proc.scalarArgs[i])
+  }
+  vars.push(["type=[", string_typesig.join(","), "].join()"].join(""))
+  vars.push("proc=CACHED[type]")
+  code.push("var " + vars.join(","))
+  
+  code.push(["if(!proc){",
+             "CACHED[type]=proc=compile([", typesig.join(","), "])}",
+             "return proc(", proc_args.join(","), ")}"].join(""))
+
+  if(proc.debug) {
+    console.log("-----Generated thunk:\n" + code.join("\n") + "\n----------")
+  }
+  
+  //Compile thunk
+  var thunk = new Function("compile", code.join("\n"))
+  return thunk(compile.bind(undefined, proc))
+}
+
+module.exports = createThunk
+
+},{"./compile.js":28}],30:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],31:[function(require,module,exports){
+arguments[4][16][0].apply(exports,arguments)
+},{"dup":16,"iota-array":32,"is-buffer":33}],32:[function(require,module,exports){
+arguments[4][17][0].apply(exports,arguments)
+},{"dup":17}],33:[function(require,module,exports){
+arguments[4][18][0].apply(exports,arguments)
+},{"dup":18}],34:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],35:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],36:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":34,"buffer":301,"dup":21}],37:[function(require,module,exports){
 'use strict'
 
 var createUniformWrapper   = require('./lib/create-uniforms')
@@ -3000,7 +3720,7 @@ function createShader(
 }
 
 module.exports = createShader
-},{"./lib/create-attributes":22,"./lib/create-uniforms":23,"./lib/reflect":24,"./lib/runtime-reflect":25,"./lib/shader-cache":26}],22:[function(require,module,exports){
+},{"./lib/create-attributes":38,"./lib/create-uniforms":39,"./lib/reflect":40,"./lib/runtime-reflect":41,"./lib/shader-cache":42}],38:[function(require,module,exports){
 'use strict'
 
 module.exports = createAttributeWrapper
@@ -3262,7 +3982,7 @@ function createAttributeWrapper(
   }
   return obj
 }
-},{}],23:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 'use strict'
 
 var coallesceUniforms = require('./reflect')
@@ -3454,7 +4174,7 @@ function createUniformWrapper(gl, wrapper, uniforms, locations) {
   }
 }
 
-},{"./reflect":24}],24:[function(require,module,exports){
+},{"./reflect":40}],40:[function(require,module,exports){
 'use strict'
 
 module.exports = makeReflectTypes
@@ -3512,7 +4232,7 @@ function makeReflectTypes(uniforms, useIndex) {
   }
   return obj
 }
-},{}],25:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 'use strict'
 
 exports.uniforms    = runtimeUniforms
@@ -3558,20 +4278,10 @@ function runtimeUniforms(gl, program) {
   for(var i=0; i<numUniforms; ++i) {
     var info = gl.getActiveUniform(program, i)
     if(info) {
-      var type = getType(gl, info.type)
-      if(info.size > 1) {
-        for(var j=0; j<info.size; ++j) {
-          result.push({
-            name: info.name.replace('[0]', '[' + j + ']'),
-            type: type
-          })
-        }
-      } else {
-        result.push({
-          name: info.name,
-          type: type
-        })
-      }
+      result.push({
+        name: info.name,
+        type: getType(gl, info.type)
+      })
     }
   }
   return result
@@ -3591,8 +4301,7 @@ function runtimeAttributes(gl, program) {
   }
   return result
 }
-
-},{}],26:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 'use strict'
 
 exports.shader   = getShaderReference
@@ -3723,7 +4432,7 @@ function createProgram(gl, vref, fref, attribs, locations) {
   return getCache(gl).getProgram(vref, fref, attribs, locations)
 }
 
-},{"weakmap-shim":29}],27:[function(require,module,exports){
+},{"weakmap-shim":45}],43:[function(require,module,exports){
 var hiddenStore = require('./hidden-store.js');
 
 module.exports = createStore;
@@ -3744,7 +4453,7 @@ function createStore() {
     };
 }
 
-},{"./hidden-store.js":28}],28:[function(require,module,exports){
+},{"./hidden-store.js":44}],44:[function(require,module,exports){
 module.exports = hiddenStore;
 
 function hiddenStore(obj, key) {
@@ -3762,7 +4471,7 @@ function hiddenStore(obj, key) {
     return store;
 }
 
-},{}],29:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 // Original - @Gozola. 
 // https://gist.github.com/Gozala/1269991
 // This is a reimplemented version (with a few bug fixes).
@@ -3792,389 +4501,7 @@ function weakMap() {
     }
 }
 
-},{"./create-store.js":27}],30:[function(require,module,exports){
-'use strict'
-
-module.exports = mouseListen
-
-var mouse = require('mouse-event')
-
-function mouseListen(element, callback) {
-
-  if(!callback) {
-    callback = element
-    element = window
-  }
-
-  var buttonState = 0
-  var x = 0
-  var y = 0
-  var mods = {
-    shift:   false,
-    alt:     false,
-    control: false,
-    meta:    false
-  }
-  var attached = false
-
-  function updateMods(ev) {
-    var changed = false
-    if('altKey' in ev) {
-      changed = changed || ev.altKey !== mods.alt
-      mods.alt = !!ev.altKey
-    }
-    if('shiftKey' in ev) {
-      changed = changed || ev.shiftKey !== mods.shift
-      mods.shift = !!ev.shiftKey
-    }
-    if('ctrlKey' in ev) {
-      changed = changed || ev.ctrlKey !== mods.control
-      mods.control = !!ev.ctrlKey
-    }
-    if('metaKey' in ev) {
-      changed = changed || ev.metaKey !== mods.meta
-      mods.meta = !!ev.metaKey
-    }
-    return changed
-  }
-
-  function handleEvent(nextButtons, ev) {
-    var nextX = mouse.x(ev)
-    var nextY = mouse.y(ev)
-    if('buttons' in ev) {
-      nextButtons = ev.buttons|0
-    }
-    if(nextButtons !== buttonState ||
-       nextX !== x ||
-       nextY !== y ||
-       updateMods(ev)) {
-      buttonState = nextButtons|0
-      x = nextX||0
-      y = nextY||0
-      callback(buttonState, x, y, mods)
-    }
-  }
-
-  function clearState(ev) {
-    handleEvent(0, ev)
-  }
-
-  function handleBlur() {
-    if(buttonState ||
-      x ||
-      y ||
-      mods.shift ||
-      mods.alt ||
-      mods.meta ||
-      mods.control) {
-
-      x = y = 0
-      buttonState = 0
-      mods.shift = mods.alt = mods.control = mods.meta = false
-      callback(0, 0, 0, mods)
-    }
-  }
-
-  function handleMods(ev) {
-    if(updateMods(ev)) {
-      callback(buttonState, x, y, mods)
-    }
-  }
-
-  function handleMouseMove(ev) {
-    if(mouse.buttons(ev) === 0) {
-      handleEvent(0, ev)
-    } else {
-      handleEvent(buttonState, ev)
-    }
-  }
-
-  function handleMouseDown(ev) {
-    handleEvent(buttonState | mouse.buttons(ev), ev)
-  }
-
-  function handleMouseUp(ev) {
-    handleEvent(buttonState & ~mouse.buttons(ev), ev)
-  }
-
-  function attachListeners() {
-    if(attached) {
-      return
-    }
-    attached = true
-
-    element.addEventListener('mousemove', handleMouseMove)
-
-    element.addEventListener('mousedown', handleMouseDown)
-
-    element.addEventListener('mouseup', handleMouseUp)
-
-    element.addEventListener('mouseleave', clearState)
-    element.addEventListener('mouseenter', clearState)
-    element.addEventListener('mouseout', clearState)
-    element.addEventListener('mouseover', clearState)
-
-    element.addEventListener('blur', handleBlur)
-
-    element.addEventListener('keyup', handleMods)
-    element.addEventListener('keydown', handleMods)
-    element.addEventListener('keypress', handleMods)
-
-    if(element !== window) {
-      window.addEventListener('blur', handleBlur)
-
-      window.addEventListener('keyup', handleMods)
-      window.addEventListener('keydown', handleMods)
-      window.addEventListener('keypress', handleMods)
-    }
-  }
-
-  function detachListeners() {
-    if(!attached) {
-      return
-    }
-    attached = false
-
-    element.removeEventListener('mousemove', handleMouseMove)
-
-    element.removeEventListener('mousedown', handleMouseDown)
-
-    element.removeEventListener('mouseup', handleMouseUp)
-
-    element.removeEventListener('mouseleave', clearState)
-    element.removeEventListener('mouseenter', clearState)
-    element.removeEventListener('mouseout', clearState)
-    element.removeEventListener('mouseover', clearState)
-
-    element.removeEventListener('blur', handleBlur)
-
-    element.removeEventListener('keyup', handleMods)
-    element.removeEventListener('keydown', handleMods)
-    element.removeEventListener('keypress', handleMods)
-
-    if(element !== window) {
-      window.removeEventListener('blur', handleBlur)
-
-      window.removeEventListener('keyup', handleMods)
-      window.removeEventListener('keydown', handleMods)
-      window.removeEventListener('keypress', handleMods)
-    }
-  }
-
-  //Attach listeners
-  attachListeners()
-
-  var result = {
-    element: element
-  }
-
-  Object.defineProperties(result, {
-    enabled: {
-      get: function() { return attached },
-      set: function(f) {
-        if(f) {
-          attachListeners()
-        } else {
-          detachListeners
-        }
-      },
-      enumerable: true
-    },
-    buttons: {
-      get: function() { return buttonState },
-      enumerable: true
-    },
-    x: {
-      get: function() { return x },
-      enumerable: true
-    },
-    y: {
-      get: function() { return y },
-      enumerable: true
-    },
-    mods: {
-      get: function() { return mods },
-      enumerable: true
-    }
-  })
-
-  return result
-}
-
-},{"mouse-event":31}],31:[function(require,module,exports){
-'use strict'
-
-function mouseButtons(ev) {
-  if(typeof ev === 'object') {
-    if('buttons' in ev) {
-      return ev.buttons
-    } else if('which' in ev) {
-      var b = ev.which
-      if(b === 2) {
-        return 4
-      } else if(b === 3) {
-        return 2
-      } else if(b > 0) {
-        return 1<<(b-1)
-      }
-    } else if('button' in ev) {
-      var b = ev.button
-      if(b === 1) {
-        return 4
-      } else if(b === 2) {
-        return 2
-      } else if(b >= 0) {
-        return 1<<b
-      }
-    }
-  }
-  return 0
-}
-exports.buttons = mouseButtons
-
-function mouseElement(ev) {
-  return ev.target || ev.srcElement || window
-}
-exports.element = mouseElement
-
-function mouseRelativeX(ev) {
-  if(typeof ev === 'object') {
-    if('offsetX' in ev) {
-      return ev.offsetX
-    }
-    var target = mouseElement(ev)
-    var bounds = target.getBoundingClientRect()
-    return ev.clientX - bounds.left
-  }
-  return 0
-}
-exports.x = mouseRelativeX
-
-function mouseRelativeY(ev) {
-  if(typeof ev === 'object') {
-    if('offsetY' in ev) {
-      return ev.offsetY
-    }
-    var target = mouseElement(ev)
-    var bounds = target.getBoundingClientRect()
-    return ev.clientY - bounds.top
-  }
-  return 0
-}
-exports.y = mouseRelativeY
-
-},{}],32:[function(require,module,exports){
-module.exports = function parseUnit(str, out) {
-    if (!out)
-        out = [ 0, '' ]
-
-    str = String(str)
-    var num = parseFloat(str, 10)
-    out[0] = num
-    out[1] = str.match(/[\d.\-\+]*\s*(.*)/)[1] || ''
-    return out
-}
-},{}],33:[function(require,module,exports){
-'use strict'
-
-var parseUnit = require('parse-unit')
-
-module.exports = toPX
-
-var PIXELS_PER_INCH = 96
-
-function getPropertyInPX(element, prop) {
-  var parts = parseUnit(getComputedStyle(element).getPropertyValue(prop))
-  return parts[0] * toPX(parts[1], element)
-}
-
-//This brutal hack is needed
-function getSizeBrutal(unit, element) {
-  var testDIV = document.createElement('div')
-  testDIV.style['font-size'] = '128' + unit
-  element.appendChild(testDIV)
-  var size = getPropertyInPX(testDIV, 'font-size') / 128
-  element.removeChild(testDIV)
-  return size
-}
-
-function toPX(str, element) {
-  element = element || document.body
-  str = (str || 'px').trim().toLowerCase()
-  if(element === window || element === document) {
-    element = document.body 
-  }
-  switch(str) {
-    case '%':  //Ambiguous, not sure if we should use width or height
-      return element.clientHeight / 100.0
-    case 'ch':
-    case 'ex':
-      return getSizeBrutal(str, element)
-    case 'em':
-      return getPropertyInPX(element, 'font-size')
-    case 'rem':
-      return getPropertyInPX(document.body, 'font-size')
-    case 'vw':
-      return window.innerWidth/100
-    case 'vh':
-      return window.innerHeight/100
-    case 'vmin':
-      return Math.min(window.innerWidth, window.innerHeight) / 100
-    case 'vmax':
-      return Math.max(window.innerWidth, window.innerHeight) / 100
-    case 'in':
-      return PIXELS_PER_INCH
-    case 'cm':
-      return PIXELS_PER_INCH / 2.54
-    case 'mm':
-      return PIXELS_PER_INCH / 25.4
-    case 'pt':
-      return PIXELS_PER_INCH / 72
-    case 'pc':
-      return PIXELS_PER_INCH / 6
-  }
-  return 1
-}
-},{"parse-unit":32}],34:[function(require,module,exports){
-'use strict'
-
-var toPX = require('to-px')
-
-module.exports = mouseWheelListen
-
-function mouseWheelListen(element, callback, noScroll) {
-  if(typeof element === 'function') {
-    noScroll = !!callback
-    callback = element
-    element = window
-  }
-  var lineHeight = toPX('ex', element)
-  element.addEventListener('wheel', function(ev) {
-    if(noScroll) {
-      ev.preventDefault()
-    }
-    var dx = ev.deltaX || 0
-    var dy = ev.deltaY || 0
-    var dz = ev.deltaZ || 0
-    var mode = ev.deltaMode
-    var scale = 1
-    switch(mode) {
-      case 1:
-        scale = lineHeight
-      break
-      case 2:
-        scale = window.innerHeight
-      break
-    }
-    dx *= scale
-    dy *= scale
-    dz *= scale
-    if(dx || dy || dz) {
-      return callback(dx, dy, dz)
-    }
-  })
-}
-},{"to-px":33}],35:[function(require,module,exports){
+},{"./create-store.js":43}],46:[function(require,module,exports){
 "use strict"
 
 module.exports = createText
@@ -4201,7 +4528,7 @@ function createText(str, options) {
     options)
 }
 
-},{"./lib/vtext":36}],36:[function(require,module,exports){
+},{"./lib/vtext":47}],47:[function(require,module,exports){
 "use strict"
 
 module.exports = vectorizeText
@@ -4408,7 +4735,7 @@ function vectorizeText(str, canvas, context, options) {
   return processPixels(pixels, options, size)
 }
 
-},{"cdt2d":37,"clean-pslg":55,"ndarray":101,"planar-graph-to-polyline":125,"simplify-planar-graph":135,"surface-nets":157}],37:[function(require,module,exports){
+},{"cdt2d":48,"clean-pslg":65,"ndarray":109,"planar-graph-to-polyline":133,"simplify-planar-graph":143,"surface-nets":156}],48:[function(require,module,exports){
 'use strict'
 
 var monotoneTriangulate = require('./lib/monotone')
@@ -4492,7 +4819,7 @@ function cdt2d(points, edges, options) {
   }
 }
 
-},{"./lib/delaunay":38,"./lib/filter":39,"./lib/monotone":40,"./lib/triangulation":41}],38:[function(require,module,exports){
+},{"./lib/delaunay":49,"./lib/filter":50,"./lib/monotone":51,"./lib/triangulation":52}],49:[function(require,module,exports){
 'use strict'
 
 var inCircle = require('robust-in-sphere')[4]
@@ -4609,7 +4936,7 @@ function delaunayRefine(points, triangulation) {
   }
 }
 
-},{"binary-search-bounds":42,"robust-in-sphere":43}],39:[function(require,module,exports){
+},{"binary-search-bounds":24,"robust-in-sphere":53}],50:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -4791,7 +5118,7 @@ function classifyFaces(triangulation, target, infinity) {
   return result
 }
 
-},{"binary-search-bounds":42}],40:[function(require,module,exports){
+},{"binary-search-bounds":24}],51:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -4980,7 +5307,7 @@ function monotoneTriangulate(points, edges) {
   return cells
 }
 
-},{"binary-search-bounds":42,"robust-orientation":54}],41:[function(require,module,exports){
+},{"binary-search-bounds":24,"robust-orientation":64}],52:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -5086,9 +5413,7 @@ function createTriangulation(numVerts, edges) {
   return new Triangulation(stars, edges)
 }
 
-},{"binary-search-bounds":42}],42:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],43:[function(require,module,exports){
+},{"binary-search-bounds":24}],53:[function(require,module,exports){
 "use strict"
 
 var twoProduct = require("two-product")
@@ -5256,7 +5581,7 @@ function generateInSphereTest() {
 }
 
 generateInSphereTest()
-},{"robust-scale":45,"robust-subtract":46,"robust-sum":47,"two-product":48}],44:[function(require,module,exports){
+},{"robust-scale":55,"robust-subtract":56,"robust-sum":57,"two-product":58}],54:[function(require,module,exports){
 "use strict"
 
 module.exports = fastTwoSum
@@ -5274,7 +5599,7 @@ function fastTwoSum(a, b, result) {
 	}
 	return [ar+br, x]
 }
-},{}],45:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 "use strict"
 
 var twoProduct = require("two-product")
@@ -5325,7 +5650,7 @@ function scaleLinearExpansion(e, scale) {
   g.length = count
   return g
 }
-},{"two-product":48,"two-sum":44}],46:[function(require,module,exports){
+},{"two-product":58,"two-sum":54}],56:[function(require,module,exports){
 "use strict"
 
 module.exports = robustSubtract
@@ -5482,7 +5807,7 @@ function robustSubtract(e, f) {
   g.length = count
   return g
 }
-},{}],47:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 "use strict"
 
 module.exports = linearExpansionSum
@@ -5639,7 +5964,7 @@ function linearExpansionSum(e, f) {
   g.length = count
   return g
 }
-},{}],48:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 "use strict"
 
 module.exports = twoProduct
@@ -5673,17 +5998,17 @@ function twoProduct(a, b, result) {
 
   return [ y, x ]
 }
-},{}],49:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],50:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"dup":45,"two-product":53,"two-sum":49}],51:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46}],52:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"dup":47}],53:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"dup":48}],54:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],60:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":63,"two-sum":59}],61:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],62:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],63:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],64:[function(require,module,exports){
 "use strict"
 
 var twoProduct = require("two-product")
@@ -5874,7 +6199,7 @@ function generateOrientationProc() {
 }
 
 generateOrientationProc()
-},{"robust-scale":50,"robust-subtract":51,"robust-sum":52,"two-product":53}],55:[function(require,module,exports){
+},{"robust-scale":60,"robust-subtract":61,"robust-sum":62,"two-product":63}],65:[function(require,module,exports){
 'use strict'
 
 module.exports = cleanPSLG
@@ -6236,7 +6561,7 @@ function cleanPSLG(points, edges, colors) {
   return modified
 }
 
-},{"./lib/rat-seg-intersect":56,"big-rat":60,"big-rat/cmp":58,"big-rat/to-float":75,"box-intersect":76,"compare-cell":86,"nextafter":87,"rat-vec":90,"robust-segment-intersect":99,"union-find":100}],56:[function(require,module,exports){
+},{"./lib/rat-seg-intersect":66,"big-rat":70,"big-rat/cmp":68,"big-rat/to-float":85,"box-intersect":86,"compare-cell":94,"nextafter":95,"rat-vec":98,"robust-segment-intersect":107,"union-find":108}],66:[function(require,module,exports){
 'use strict'
 
 //TODO: Move this to a separate module
@@ -6282,7 +6607,7 @@ function solveIntersection(a, b, c, d) {
   return rvAdd(a, rvMuls(ba, t))
 }
 
-},{"big-rat/div":59,"big-rat/mul":69,"big-rat/sign":73,"big-rat/sub":74,"big-rat/to-float":75,"rat-vec/add":89,"rat-vec/muls":91,"rat-vec/sub":92}],57:[function(require,module,exports){
+},{"big-rat/div":69,"big-rat/mul":79,"big-rat/sign":83,"big-rat/sub":84,"big-rat/to-float":85,"rat-vec/add":97,"rat-vec/muls":99,"rat-vec/sub":100}],67:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -6295,7 +6620,7 @@ function add(a, b) {
     a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":67}],58:[function(require,module,exports){
+},{"./lib/rationalize":77}],68:[function(require,module,exports){
 'use strict'
 
 module.exports = cmp
@@ -6304,7 +6629,7 @@ function cmp(a, b) {
     return a[0].mul(b[1]).cmp(b[0].mul(a[1]))
 }
 
-},{}],59:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -6315,7 +6640,7 @@ function div(a, b) {
   return rationalize(a[0].mul(b[1]), a[1].mul(b[0]))
 }
 
-},{"./lib/rationalize":67}],60:[function(require,module,exports){
+},{"./lib/rationalize":77}],70:[function(require,module,exports){
 'use strict'
 
 var isRat = require('./is-rat')
@@ -6377,7 +6702,7 @@ function makeRational(numer, denom) {
   return rationalize(a, b)
 }
 
-},{"./div":59,"./is-rat":61,"./lib/is-bn":65,"./lib/num-to-bn":66,"./lib/rationalize":67,"./lib/str-to-bn":68}],61:[function(require,module,exports){
+},{"./div":69,"./is-rat":71,"./lib/is-bn":75,"./lib/num-to-bn":76,"./lib/rationalize":77,"./lib/str-to-bn":78}],71:[function(require,module,exports){
 'use strict'
 
 var isBN = require('./lib/is-bn')
@@ -6388,7 +6713,7 @@ function isRat(x) {
   return Array.isArray(x) && x.length === 2 && isBN(x[0]) && isBN(x[1])
 }
 
-},{"./lib/is-bn":65}],62:[function(require,module,exports){
+},{"./lib/is-bn":75}],72:[function(require,module,exports){
 'use strict'
 
 var bn = require('bn.js')
@@ -6399,7 +6724,7 @@ function sign(x) {
   return x.cmp(new bn(0))
 }
 
-},{"bn.js":71}],63:[function(require,module,exports){
+},{"bn.js":81}],73:[function(require,module,exports){
 'use strict'
 
 module.exports = bn2num
@@ -6423,7 +6748,7 @@ function bn2num(b) {
   return b.sign ? -out : out
 }
 
-},{}],64:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 'use strict'
 
 var db = require('double-bits')
@@ -6444,7 +6769,7 @@ function ctzNumber(x) {
   return h + 32
 }
 
-},{"bit-twiddle":70,"double-bits":72}],65:[function(require,module,exports){
+},{"bit-twiddle":80,"double-bits":82}],75:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -6457,7 +6782,7 @@ function isBN(x) {
   return x && typeof x === 'object' && Boolean(x.words)
 }
 
-},{"bn.js":71}],66:[function(require,module,exports){
+},{"bn.js":81}],76:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -6474,7 +6799,7 @@ function num2bn(x) {
   }
 }
 
-},{"bn.js":71,"double-bits":72}],67:[function(require,module,exports){
+},{"bn.js":81,"double-bits":82}],77:[function(require,module,exports){
 'use strict'
 
 var num2bn = require('./num-to-bn')
@@ -6502,7 +6827,7 @@ function rationalize(numer, denom) {
   return [ numer, denom ]
 }
 
-},{"./bn-sign":62,"./num-to-bn":66}],68:[function(require,module,exports){
+},{"./bn-sign":72,"./num-to-bn":76}],78:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -6513,7 +6838,7 @@ function str2BN(x) {
   return new BN(x)
 }
 
-},{"bn.js":71}],69:[function(require,module,exports){
+},{"bn.js":81}],79:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -6524,9 +6849,9 @@ function mul(a, b) {
   return rationalize(a[0].mul(b[0]), a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":67}],70:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],71:[function(require,module,exports){
+},{"./lib/rationalize":77}],80:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],81:[function(require,module,exports){
 (function (module, exports) {
 
 'use strict';
@@ -8846,7 +9171,7 @@ Mont.prototype.invm = function invm(a) {
 
 })(typeof module === 'undefined' || module, this);
 
-},{}],72:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 (function (Buffer){
 var hasTypedArrays = false
 if(typeof Float64Array !== "undefined") {
@@ -8950,7 +9275,7 @@ module.exports.denormalized = function(n) {
   return !(hi & 0x7ff00000)
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":160}],73:[function(require,module,exports){
+},{"buffer":301}],83:[function(require,module,exports){
 'use strict'
 
 var bnsign = require('./lib/bn-sign')
@@ -8961,7 +9286,7 @@ function sign(x) {
   return bnsign(x[0]) * bnsign(x[1])
 }
 
-},{"./lib/bn-sign":62}],74:[function(require,module,exports){
+},{"./lib/bn-sign":72}],84:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -8972,7 +9297,7 @@ function sub(a, b) {
   return rationalize(a[0].mul(b[1]).sub(a[1].mul(b[0])), a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":67}],75:[function(require,module,exports){
+},{"./lib/rationalize":77}],85:[function(require,module,exports){
 'use strict'
 
 var bn2num = require('./lib/bn-to-num')
@@ -9015,7 +9340,7 @@ function roundRat(f) {
   }
 }
 
-},{"./lib/bn-to-num":63,"./lib/ctz":64}],76:[function(require,module,exports){
+},{"./lib/bn-to-num":73,"./lib/ctz":74}],86:[function(require,module,exports){
 'use strict'
 
 module.exports = boxIntersectWrapper
@@ -9154,7 +9479,7 @@ function boxIntersectWrapper(arg0, arg1, arg2) {
       throw new Error('box-intersect: Invalid arguments')
   }
 }
-},{"./lib/intersect":78,"./lib/sweep":82,"typedarray-pool":85}],77:[function(require,module,exports){
+},{"./lib/intersect":88,"./lib/sweep":92,"typedarray-pool":160}],87:[function(require,module,exports){
 'use strict'
 
 var DIMENSION   = 'd'
@@ -9299,7 +9624,7 @@ function bruteForcePlanner(full) {
 
 exports.partial = bruteForcePlanner(false)
 exports.full    = bruteForcePlanner(true)
-},{}],78:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 'use strict'
 
 module.exports = boxIntersectIter
@@ -9794,7 +10119,7 @@ function boxIntersectIter(
     }
   }
 }
-},{"./brute":77,"./median":79,"./partition":80,"./sweep":82,"bit-twiddle":83,"typedarray-pool":85}],79:[function(require,module,exports){
+},{"./brute":87,"./median":89,"./partition":90,"./sweep":92,"bit-twiddle":93,"typedarray-pool":160}],89:[function(require,module,exports){
 'use strict'
 
 module.exports = findMedian
@@ -9937,7 +10262,7 @@ function findMedian(d, axis, start, end, boxes, ids) {
     start, mid, boxes, ids,
     boxes[elemSize*mid+axis])
 }
-},{"./partition":80}],80:[function(require,module,exports){
+},{"./partition":90}],90:[function(require,module,exports){
 'use strict'
 
 module.exports = genPartition
@@ -9958,7 +10283,7 @@ function genPartition(predicate, args) {
         .replace('$', predicate))
   return Function.apply(void 0, fargs)
 }
-},{}],81:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 'use strict';
 
 //This code is extracted from ndarray-sort
@@ -10195,7 +10520,7 @@ function quickSort(left, right, data) {
     quickSort(less, great, data);
   }
 }
-},{}],82:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 'use strict'
 
 module.exports = {
@@ -10630,13 +10955,9 @@ red_loop:
     }
   }
 }
-},{"./sort":81,"bit-twiddle":83,"typedarray-pool":85}],83:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],84:[function(require,module,exports){
+},{"./sort":91,"bit-twiddle":93,"typedarray-pool":160}],93:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],85:[function(require,module,exports){
-arguments[4][20][0].apply(exports,arguments)
-},{"bit-twiddle":83,"buffer":160,"dup":20}],86:[function(require,module,exports){
+},{"dup":19}],94:[function(require,module,exports){
 module.exports = compareCells
 
 var min = Math.min
@@ -10692,7 +11013,7 @@ function compareCells(a, b) {
   }
 }
 
-},{}],87:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 "use strict"
 
 var doubleBits = require("double-bits")
@@ -10735,9 +11056,9 @@ function nextafter(x, y) {
   }
   return doubleBits.pack(lo, hi)
 }
-},{"double-bits":88}],88:[function(require,module,exports){
-arguments[4][72][0].apply(exports,arguments)
-},{"buffer":160,"dup":72}],89:[function(require,module,exports){
+},{"double-bits":96}],96:[function(require,module,exports){
+arguments[4][82][0].apply(exports,arguments)
+},{"buffer":301,"dup":82}],97:[function(require,module,exports){
 'use strict'
 
 var bnadd = require('big-rat/add')
@@ -10753,7 +11074,7 @@ function add(a, b) {
   return r
 }
 
-},{"big-rat/add":57}],90:[function(require,module,exports){
+},{"big-rat/add":67}],98:[function(require,module,exports){
 'use strict'
 
 module.exports = float2rat
@@ -10768,7 +11089,7 @@ function float2rat(v) {
   return result
 }
 
-},{"big-rat":60}],91:[function(require,module,exports){
+},{"big-rat":70}],99:[function(require,module,exports){
 'use strict'
 
 var rat = require('big-rat')
@@ -10786,7 +11107,7 @@ function muls(a, x) {
   return r
 }
 
-},{"big-rat":60,"big-rat/mul":69}],92:[function(require,module,exports){
+},{"big-rat":70,"big-rat/mul":79}],100:[function(require,module,exports){
 'use strict'
 
 var bnsub = require('big-rat/sub')
@@ -10802,19 +11123,19 @@ function sub(a, b) {
   return r
 }
 
-},{"big-rat/sub":74}],93:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],94:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"dup":45,"two-product":97,"two-sum":93}],95:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46}],96:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"dup":47}],97:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"dup":48}],98:[function(require,module,exports){
+},{"big-rat/sub":84}],101:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54,"robust-scale":94,"robust-subtract":95,"robust-sum":96,"two-product":97}],99:[function(require,module,exports){
+},{"dup":54}],102:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":105,"two-sum":101}],103:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],104:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],105:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],106:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":102,"robust-subtract":103,"robust-sum":104,"two-product":105}],107:[function(require,module,exports){
 "use strict"
 
 module.exports = segmentsIntersect
@@ -10862,7 +11183,7 @@ function segmentsIntersect(a0, a1, b0, b1) {
 
   return true
 }
-},{"robust-orientation":98}],100:[function(require,module,exports){
+},{"robust-orientation":106}],108:[function(require,module,exports){
 "use strict"; "use restrict";
 
 module.exports = UnionFind;
@@ -10925,13 +11246,13 @@ proto.link = function(x, y) {
     ++ranks[xr];
   }
 }
-},{}],101:[function(require,module,exports){
-arguments[4][15][0].apply(exports,arguments)
-},{"dup":15,"iota-array":102,"is-buffer":103}],102:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 arguments[4][16][0].apply(exports,arguments)
-},{"dup":16}],103:[function(require,module,exports){
+},{"dup":16,"iota-array":110,"is-buffer":111}],110:[function(require,module,exports){
 arguments[4][17][0].apply(exports,arguments)
-},{"dup":17}],104:[function(require,module,exports){
+},{"dup":17}],111:[function(require,module,exports){
+arguments[4][18][0].apply(exports,arguments)
+},{"dup":18}],112:[function(require,module,exports){
 'use strict'
 
 module.exports = trimLeaves
@@ -10987,7 +11308,7 @@ function trimLeaves(edges, positions) {
   
   return [ nedges, npositions ]
 }
-},{"edges-to-adjacency-list":105}],105:[function(require,module,exports){
+},{"edges-to-adjacency-list":113}],113:[function(require,module,exports){
 "use strict"
 
 module.exports = edgeToAdjacency
@@ -11021,7 +11342,7 @@ function edgeToAdjacency(edges, numVertices) {
   }
   return adj
 }
-},{"uniq":124}],106:[function(require,module,exports){
+},{"uniq":132}],114:[function(require,module,exports){
 "use strict"
 
 module.exports = planarDual
@@ -11152,7 +11473,7 @@ function planarDual(cells, positions) {
   //Combine paths and loops together
   return cycles
 }
-},{"compare-angle":107}],107:[function(require,module,exports){
+},{"compare-angle":115}],115:[function(require,module,exports){
 "use strict"
 
 module.exports = compareAngle
@@ -11238,9 +11559,9 @@ function compareAngle(a, b, c, d) {
     }
   }
 }
-},{"robust-orientation":121,"robust-product":109,"robust-sum":122,"signum":110,"two-sum":111}],108:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"dup":45,"two-product":123,"two-sum":111}],109:[function(require,module,exports){
+},{"robust-orientation":129,"robust-product":117,"robust-sum":130,"signum":118,"two-sum":119}],116:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":131,"two-sum":119}],117:[function(require,module,exports){
 "use strict"
 
 var robustSum = require("robust-sum")
@@ -11270,7 +11591,7 @@ function robustProduct(a, b) {
   }
   return r
 }
-},{"robust-scale":108,"robust-sum":122}],110:[function(require,module,exports){
+},{"robust-scale":116,"robust-sum":130}],118:[function(require,module,exports){
 "use strict"
 
 module.exports = function signum(x) {
@@ -11278,9 +11599,9 @@ module.exports = function signum(x) {
   if(x > 0) { return 1 }
   return 0.0
 }
-},{}],111:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],112:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],120:[function(require,module,exports){
 "use strict"
 
 function compileSearch(funcName, predicate, reversed, extraArgs, useNdarray, earlyOut) {
@@ -11342,7 +11663,7 @@ module.exports = {
   eq: compileBoundsSearch("-", true, "EQ", true)
 }
 
-},{}],113:[function(require,module,exports){
+},{}],121:[function(require,module,exports){
 "use strict"
 
 var bounds = require("binary-search-bounds")
@@ -11709,7 +12030,7 @@ function createWrapper(intervals) {
   return new IntervalTree(createIntervalTree(intervals))
 }
 
-},{"binary-search-bounds":112}],114:[function(require,module,exports){
+},{"binary-search-bounds":120}],122:[function(require,module,exports){
 "use strict"
 
 module.exports = orderSegments
@@ -11805,7 +12126,7 @@ function orderSegments(b, a) {
   }
   return ar[0] - br[0]
 }
-},{"robust-orientation":121}],115:[function(require,module,exports){
+},{"robust-orientation":129}],123:[function(require,module,exports){
 "use strict"
 
 module.exports = createRBTree
@@ -12802,7 +13123,7 @@ function defaultCompare(a, b) {
 function createRBTree(compare) {
   return new RedBlackTree(compare || defaultCompare, null)
 }
-},{}],116:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 "use strict"
 
 module.exports = createSlabDecomposition
@@ -13033,7 +13354,7 @@ function createSlabDecomposition(segments) {
   }
   return new SlabDecomposition(slabs, lines, horizontal)
 }
-},{"./lib/order-segments":114,"binary-search-bounds":112,"functional-red-black-tree":115,"robust-orientation":121}],117:[function(require,module,exports){
+},{"./lib/order-segments":122,"binary-search-bounds":120,"functional-red-black-tree":123,"robust-orientation":129}],125:[function(require,module,exports){
 module.exports = preprocessPolygon
 
 var orient = require('robust-orientation')[3]
@@ -13185,21 +13506,21 @@ function preprocessPolygon(loops) {
       testSlab)
   }
 }
-},{"binary-search-bounds":112,"interval-tree-1d":113,"robust-orientation":121,"slab-decomposition":116}],118:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],119:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"dup":45,"two-product":123,"two-sum":118}],120:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46}],121:[function(require,module,exports){
+},{"binary-search-bounds":120,"interval-tree-1d":121,"robust-orientation":129,"slab-decomposition":124}],126:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54,"robust-scale":119,"robust-subtract":120,"robust-sum":122,"two-product":123}],122:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"dup":47}],123:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"dup":48}],124:[function(require,module,exports){
-arguments[4][14][0].apply(exports,arguments)
-},{"dup":14}],125:[function(require,module,exports){
+},{"dup":54}],127:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":131,"two-sum":126}],128:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],129:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":127,"robust-subtract":128,"robust-sum":130,"two-product":131}],130:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],131:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],132:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],133:[function(require,module,exports){
 'use strict'
 
 module.exports = planarGraphToPolyline
@@ -13404,21 +13725,21 @@ function planarGraphToPolyline(edges, positions) {
 
   return result
 }
-},{"./lib/trim-leaves":104,"edges-to-adjacency-list":105,"planar-dual":106,"point-in-big-polygon":117,"robust-sum":122,"two-product":123,"uniq":124}],126:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],127:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"dup":45,"two-product":130,"two-sum":126}],128:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46}],129:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"dup":47}],130:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"dup":48}],131:[function(require,module,exports){
+},{"./lib/trim-leaves":112,"edges-to-adjacency-list":113,"planar-dual":114,"point-in-big-polygon":125,"robust-sum":130,"two-product":131,"uniq":132}],134:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54,"robust-scale":127,"robust-subtract":128,"robust-sum":129,"two-product":130}],132:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],133:[function(require,module,exports){
+},{"dup":54}],135:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":138,"two-sum":134}],136:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],137:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],138:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],139:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":135,"robust-subtract":136,"robust-sum":137,"two-product":138}],140:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],141:[function(require,module,exports){
 "use strict"; "use restrict";
 
 module.exports = UnionFind;
@@ -13475,7 +13796,7 @@ UnionFind.prototype.link = function(x, y) {
 }
 
 
-},{}],134:[function(require,module,exports){
+},{}],142:[function(require,module,exports){
 "use strict"; "use restrict";
 
 var bits      = require("bit-twiddle")
@@ -13819,7 +14140,7 @@ function connectedComponents(cells, vertex_count) {
 }
 exports.connectedComponents = connectedComponents
 
-},{"bit-twiddle":132,"union-find":133}],135:[function(require,module,exports){
+},{"bit-twiddle":140,"union-find":141}],143:[function(require,module,exports){
 "use strict"
 
 module.exports = simplifyPolygon
@@ -14091,7 +14412,7 @@ function simplifyPolygon(cells, positions, minArea) {
     edges: ncells
   }
 }
-},{"robust-orientation":131,"simplicial-complex":134}],136:[function(require,module,exports){
+},{"robust-orientation":139,"simplicial-complex":142}],144:[function(require,module,exports){
 "use strict"
 
 var pool = require("typedarray-pool")
@@ -14507,13 +14828,7 @@ function createSurfaceExtractor(args) {
     order,
     typesig)
 }
-},{"typedarray-pool":139}],137:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],138:[function(require,module,exports){
-arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],139:[function(require,module,exports){
-arguments[4][20][0].apply(exports,arguments)
-},{"bit-twiddle":137,"buffer":160,"dup":20}],140:[function(require,module,exports){
+},{"typedarray-pool":160}],145:[function(require,module,exports){
 // transliterated from the python snippet here:
 // http://en.wikipedia.org/wiki/Lanczos_approximation
 
@@ -14582,13 +14897,7 @@ module.exports = function gamma (z) {
 
 module.exports.log = lngamma;
 
-},{}],141:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],142:[function(require,module,exports){
-arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],143:[function(require,module,exports){
-arguments[4][20][0].apply(exports,arguments)
-},{"bit-twiddle":141,"buffer":160,"dup":20}],144:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 "use strict"
 
 module.exports = permutationSign
@@ -14640,7 +14949,7 @@ function permutationSign(p) {
     return sgn
   }
 }
-},{"typedarray-pool":143}],145:[function(require,module,exports){
+},{"typedarray-pool":160}],147:[function(require,module,exports){
 "use strict"
 
 var pool = require("typedarray-pool")
@@ -14727,7 +15036,7 @@ function unrank(n, r, p) {
 exports.rank = rank
 exports.unrank = unrank
 
-},{"invert-permutation":146,"typedarray-pool":149}],146:[function(require,module,exports){
+},{"invert-permutation":148,"typedarray-pool":160}],148:[function(require,module,exports){
 "use strict"
 
 function invertPermutation(pi, result) {
@@ -14739,13 +15048,7 @@ function invertPermutation(pi, result) {
 }
 
 module.exports = invertPermutation
-},{}],147:[function(require,module,exports){
-arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],148:[function(require,module,exports){
-arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],149:[function(require,module,exports){
-arguments[4][20][0].apply(exports,arguments)
-},{"bit-twiddle":147,"buffer":160,"dup":20}],150:[function(require,module,exports){
+},{}],149:[function(require,module,exports){
 "use strict"
 
 module.exports = triangulateCube
@@ -14779,7 +15082,7 @@ function triangulateCube(dimension) {
   }
   return result
 }
-},{"gamma":140,"permutation-parity":144,"permutation-rank":145}],151:[function(require,module,exports){
+},{"gamma":145,"permutation-parity":146,"permutation-rank":147}],150:[function(require,module,exports){
 module.exports = require('cwise-compiler')({
     args: ['array', {
         offset: [1],
@@ -14831,15 +15134,15 @@ module.exports = require('cwise-compiler')({
     funcName: 'zeroCrossings'
 })
 
-},{"cwise-compiler":152}],152:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"./lib/thunk.js":154,"dup":11}],153:[function(require,module,exports){
+},{"cwise-compiler":151}],151:[function(require,module,exports){
 arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"uniq":155}],154:[function(require,module,exports){
+},{"./lib/thunk.js":153,"dup":12}],152:[function(require,module,exports){
 arguments[4][13][0].apply(exports,arguments)
-},{"./compile.js":153,"dup":13}],155:[function(require,module,exports){
+},{"dup":13,"uniq":154}],153:[function(require,module,exports){
 arguments[4][14][0].apply(exports,arguments)
-},{"dup":14}],156:[function(require,module,exports){
+},{"./compile.js":152,"dup":14}],154:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],155:[function(require,module,exports){
 "use strict"
 
 module.exports = findZeroCrossings
@@ -14852,7 +15155,7 @@ function findZeroCrossings(array, level) {
   core(array.hi(array.shape[0]-1), cross, level)
   return cross
 }
-},{"./lib/zc-core":151}],157:[function(require,module,exports){
+},{"./lib/zc-core":150}],156:[function(require,module,exports){
 "use strict"
 
 module.exports = surfaceNets
@@ -15060,7 +15363,7 @@ function surfaceNets(array,level) {
   }
   return proc(array,level)
 }
-},{"ndarray-extract-contour":136,"triangulate-hypercube":150,"zero-crossings":156}],158:[function(require,module,exports){
+},{"ndarray-extract-contour":144,"triangulate-hypercube":149,"zero-crossings":155}],157:[function(require,module,exports){
 (function (process){
 'use strict'
 
@@ -15090,7 +15393,865 @@ function textGet(font, text) {
 }
 
 }).call(this,require('_process'))
-},{"_process":164,"vectorize-text":35}],159:[function(require,module,exports){
+},{"_process":305,"vectorize-text":46}],158:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],159:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],160:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":158,"buffer":301,"dup":21}],161:[function(require,module,exports){
+'use strict'
+
+var createShader = require('gl-shader')
+var createBuffer = require('gl-buffer')
+var bsearch = require('binary-search-bounds')
+var getMarker = require('text-cache')
+
+var pool = require('typedarray-pool')
+
+var SHADERS = require('./lib/shader')
+var preprocessPoints = require('./lib/sort-points')
+
+var SUBDIV_COUNT = 2
+
+module.exports = createScatter2D
+
+function Scatter2D(plot, offsetBuffer, shader) {
+  this.plot           = plot
+  this.offsetBuffer   = offsetBuffer
+  this.glyphSize      = 0
+  this.shader         = shader
+  this.scales         = []
+  this.size           = 12.0
+  this.borderSize     = 1.0
+  this.pointCount     = 0
+  this.color          = [1,0,0,1]
+  this.borderColor    = [0,0,0,1]
+  this.bounds         = [Infinity,Infinity,-Infinity,-Infinity]
+}
+
+var proto = Scatter2D.prototype
+
+proto.update = function(options) {
+  options = options || {}
+
+  function dflt(opt, value) {
+    if(opt in options) {
+      return options[opt]
+    }
+    return value
+  }
+
+  this.size         = dflt('size', 12.0)
+  this.color        = dflt('color', [1,0,0,1]).slice()
+  this.borderSize   = dflt('borderSize', 1)
+  this.borderColor  = dflt('borderColor', [0,0,0,1]).slice()
+
+  //Update point data
+  var data          = options.positions
+  var packed        = pool.mallocFloat32(data.length)
+  this.scales       = preprocessPoints(data, SUBDIV_COUNT, packed, this.bounds)
+  this.offsetBuffer.update(packed)
+  pool.free(packed)
+
+  this.pointCount = data.length >>> 1
+}
+
+function compareScale(a, b) {
+  return b - a.scale
+}
+
+proto.draw = (function() {
+  var MATRIX = [1, 0, 0,
+                0, 1, 0,
+                0, 0, 1]
+
+  return function() {
+    var plot          = this.plot
+    var shader        = this.shader
+    var scales        = this.scales
+    var offsetBuffer  = this.offsetBuffer
+    var bounds        = this.bounds
+    var size          = this.size
+    var borderSize    = this.borderSize
+    var gl            = plot.gl
+    var pixelRatio    = plot.pixelRatio
+    var viewBox       = plot.viewBox
+    var dataBox       = plot.dataBox
+
+    var boundX  = bounds[2] - bounds[0]
+    var boundY  = bounds[3] - bounds[1]
+    var dataX   = dataBox[2] - dataBox[0]
+    var dataY   = dataBox[3] - dataBox[1]
+    var screenX = viewBox[2] - viewBox[0]
+    var screenY = viewBox[3] - viewBox[1]
+
+    var pixelSize   = Math.max(dataX / screenX, dataY / screenY)
+    var targetScale = pixelSize
+    var scaleNum    = Math.min(Math.max(bsearch.le(scales, targetScale, compareScale), 0), scales.length-1)
+
+    MATRIX[0] = 2.0 * boundX / dataX
+    MATRIX[4] = 2.0 * boundY / dataY
+    MATRIX[6] = 2.0 * (bounds[0] - dataBox[0]) / dataX - 1.0
+    MATRIX[7] = 2.0 * (bounds[1] - dataBox[1]) / dataY - 1.0
+
+    shader.bind()
+    shader.uniforms.matrix      = MATRIX
+    shader.uniforms.color       = this.color
+    shader.uniforms.borderColor = this.borderColor
+    shader.uniforms.pointSize   = pixelRatio * (size + borderSize)
+
+    if(this.borderSize === 0) {
+      shader.uniforms.centerFraction = 2.0;
+    } else {
+      shader.uniforms.centerFraction = size / (size + borderSize + 1.25)
+    }
+
+    offsetBuffer.bind()
+    shader.attributes.position.pointer()
+    var offset = scales[scaleNum].count
+    var pointCount = this.pointCount
+    gl.drawArrays(gl.POINTS, offset, pointCount - offset)
+  }
+})()
+
+function createScatter2D(plot, options) {
+  var gl     = plot.gl
+  var buffer = createBuffer(gl)
+  var shader = createShader(gl, SHADERS.pointVertex, SHADERS.pointFragment)
+
+  var result = new Scatter2D(plot, buffer, shader)
+  result.update(options)
+  return result
+}
+
+},{"./lib/shader":22,"./lib/sort-points":23,"binary-search-bounds":24,"gl-buffer":25,"gl-shader":37,"text-cache":157,"typedarray-pool":160}],162:[function(require,module,exports){
+arguments[4][37][0].apply(exports,arguments)
+},{"./lib/create-attributes":163,"./lib/create-uniforms":164,"./lib/reflect":165,"./lib/runtime-reflect":166,"./lib/shader-cache":167,"dup":37}],163:[function(require,module,exports){
+arguments[4][38][0].apply(exports,arguments)
+},{"dup":38}],164:[function(require,module,exports){
+arguments[4][39][0].apply(exports,arguments)
+},{"./reflect":165,"dup":39}],165:[function(require,module,exports){
+arguments[4][40][0].apply(exports,arguments)
+},{"dup":40}],166:[function(require,module,exports){
+'use strict'
+
+exports.uniforms    = runtimeUniforms
+exports.attributes  = runtimeAttributes
+
+var GL_TO_GLSL_TYPES = {
+  'FLOAT':       'float',
+  'FLOAT_VEC2':  'vec2',
+  'FLOAT_VEC3':  'vec3',
+  'FLOAT_VEC4':  'vec4',
+  'INT':         'int',
+  'INT_VEC2':    'ivec2',
+  'INT_VEC3':    'ivec3',
+  'INT_VEC4':    'ivec4',
+  'BOOL':        'bool',
+  'BOOL_VEC2':   'bvec2',
+  'BOOL_VEC3':   'bvec3',
+  'BOOL_VEC4':   'bvec4',
+  'FLOAT_MAT2':  'mat2',
+  'FLOAT_MAT3':  'mat3',
+  'FLOAT_MAT4':  'mat4',
+  'SAMPLER_2D':  'sampler2D',
+  'SAMPLER_CUBE':'samplerCube'
+}
+
+var GL_TABLE = null
+
+function getType(gl, type) {
+  if(!GL_TABLE) {
+    var typeNames = Object.keys(GL_TO_GLSL_TYPES)
+    GL_TABLE = {}
+    for(var i=0; i<typeNames.length; ++i) {
+      var tn = typeNames[i]
+      GL_TABLE[gl[tn]] = GL_TO_GLSL_TYPES[tn]
+    }
+  }
+  return GL_TABLE[type]
+}
+
+function runtimeUniforms(gl, program) {
+  var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS)
+  var result = []
+  for(var i=0; i<numUniforms; ++i) {
+    var info = gl.getActiveUniform(program, i)
+    if(info) {
+      var type = getType(gl, info.type)
+      if(info.size > 1) {
+        for(var j=0; j<info.size; ++j) {
+          result.push({
+            name: info.name.replace('[0]', '[' + j + ']'),
+            type: type
+          })
+        }
+      } else {
+        result.push({
+          name: info.name,
+          type: type
+        })
+      }
+    }
+  }
+  return result
+}
+
+function runtimeAttributes(gl, program) {
+  var numAttributes = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES)
+  var result = []
+  for(var i=0; i<numAttributes; ++i) {
+    var info = gl.getActiveAttrib(program, i)
+    if(info) {
+      result.push({
+        name: info.name,
+        type: getType(gl, info.type)
+      })
+    }
+  }
+  return result
+}
+
+},{}],167:[function(require,module,exports){
+arguments[4][42][0].apply(exports,arguments)
+},{"dup":42,"weakmap-shim":170}],168:[function(require,module,exports){
+arguments[4][43][0].apply(exports,arguments)
+},{"./hidden-store.js":169,"dup":43}],169:[function(require,module,exports){
+arguments[4][44][0].apply(exports,arguments)
+},{"dup":44}],170:[function(require,module,exports){
+arguments[4][45][0].apply(exports,arguments)
+},{"./create-store.js":168,"dup":45}],171:[function(require,module,exports){
+'use strict'
+
+module.exports = mouseListen
+
+var mouse = require('mouse-event')
+
+function mouseListen(element, callback) {
+
+  if(!callback) {
+    callback = element
+    element = window
+  }
+
+  var buttonState = 0
+  var x = 0
+  var y = 0
+  var mods = {
+    shift:   false,
+    alt:     false,
+    control: false,
+    meta:    false
+  }
+  var attached = false
+
+  function updateMods(ev) {
+    var changed = false
+    if('altKey' in ev) {
+      changed = changed || ev.altKey !== mods.alt
+      mods.alt = !!ev.altKey
+    }
+    if('shiftKey' in ev) {
+      changed = changed || ev.shiftKey !== mods.shift
+      mods.shift = !!ev.shiftKey
+    }
+    if('ctrlKey' in ev) {
+      changed = changed || ev.ctrlKey !== mods.control
+      mods.control = !!ev.ctrlKey
+    }
+    if('metaKey' in ev) {
+      changed = changed || ev.metaKey !== mods.meta
+      mods.meta = !!ev.metaKey
+    }
+    return changed
+  }
+
+  function handleEvent(nextButtons, ev) {
+    var nextX = mouse.x(ev)
+    var nextY = mouse.y(ev)
+    if('buttons' in ev) {
+      nextButtons = ev.buttons|0
+    }
+    if(nextButtons !== buttonState ||
+       nextX !== x ||
+       nextY !== y ||
+       updateMods(ev)) {
+      buttonState = nextButtons|0
+      x = nextX||0
+      y = nextY||0
+      callback(buttonState, x, y, mods)
+    }
+  }
+
+  function clearState(ev) {
+    handleEvent(0, ev)
+  }
+
+  function handleBlur() {
+    if(buttonState ||
+      x ||
+      y ||
+      mods.shift ||
+      mods.alt ||
+      mods.meta ||
+      mods.control) {
+
+      x = y = 0
+      buttonState = 0
+      mods.shift = mods.alt = mods.control = mods.meta = false
+      callback(0, 0, 0, mods)
+    }
+  }
+
+  function handleMods(ev) {
+    if(updateMods(ev)) {
+      callback(buttonState, x, y, mods)
+    }
+  }
+
+  function handleMouseMove(ev) {
+    if(mouse.buttons(ev) === 0) {
+      handleEvent(0, ev)
+    } else {
+      handleEvent(buttonState, ev)
+    }
+  }
+
+  function handleMouseDown(ev) {
+    handleEvent(buttonState | mouse.buttons(ev), ev)
+  }
+
+  function handleMouseUp(ev) {
+    handleEvent(buttonState & ~mouse.buttons(ev), ev)
+  }
+
+  function attachListeners() {
+    if(attached) {
+      return
+    }
+    attached = true
+
+    element.addEventListener('mousemove', handleMouseMove)
+
+    element.addEventListener('mousedown', handleMouseDown)
+
+    element.addEventListener('mouseup', handleMouseUp)
+
+    element.addEventListener('mouseleave', clearState)
+    element.addEventListener('mouseenter', clearState)
+    element.addEventListener('mouseout', clearState)
+    element.addEventListener('mouseover', clearState)
+
+    element.addEventListener('blur', handleBlur)
+
+    element.addEventListener('keyup', handleMods)
+    element.addEventListener('keydown', handleMods)
+    element.addEventListener('keypress', handleMods)
+
+    if(element !== window) {
+      window.addEventListener('blur', handleBlur)
+
+      window.addEventListener('keyup', handleMods)
+      window.addEventListener('keydown', handleMods)
+      window.addEventListener('keypress', handleMods)
+    }
+  }
+
+  function detachListeners() {
+    if(!attached) {
+      return
+    }
+    attached = false
+
+    element.removeEventListener('mousemove', handleMouseMove)
+
+    element.removeEventListener('mousedown', handleMouseDown)
+
+    element.removeEventListener('mouseup', handleMouseUp)
+
+    element.removeEventListener('mouseleave', clearState)
+    element.removeEventListener('mouseenter', clearState)
+    element.removeEventListener('mouseout', clearState)
+    element.removeEventListener('mouseover', clearState)
+
+    element.removeEventListener('blur', handleBlur)
+
+    element.removeEventListener('keyup', handleMods)
+    element.removeEventListener('keydown', handleMods)
+    element.removeEventListener('keypress', handleMods)
+
+    if(element !== window) {
+      window.removeEventListener('blur', handleBlur)
+
+      window.removeEventListener('keyup', handleMods)
+      window.removeEventListener('keydown', handleMods)
+      window.removeEventListener('keypress', handleMods)
+    }
+  }
+
+  //Attach listeners
+  attachListeners()
+
+  var result = {
+    element: element
+  }
+
+  Object.defineProperties(result, {
+    enabled: {
+      get: function() { return attached },
+      set: function(f) {
+        if(f) {
+          attachListeners()
+        } else {
+          detachListeners
+        }
+      },
+      enumerable: true
+    },
+    buttons: {
+      get: function() { return buttonState },
+      enumerable: true
+    },
+    x: {
+      get: function() { return x },
+      enumerable: true
+    },
+    y: {
+      get: function() { return y },
+      enumerable: true
+    },
+    mods: {
+      get: function() { return mods },
+      enumerable: true
+    }
+  })
+
+  return result
+}
+
+},{"mouse-event":172}],172:[function(require,module,exports){
+'use strict'
+
+function mouseButtons(ev) {
+  if(typeof ev === 'object') {
+    if('buttons' in ev) {
+      return ev.buttons
+    } else if('which' in ev) {
+      var b = ev.which
+      if(b === 2) {
+        return 4
+      } else if(b === 3) {
+        return 2
+      } else if(b > 0) {
+        return 1<<(b-1)
+      }
+    } else if('button' in ev) {
+      var b = ev.button
+      if(b === 1) {
+        return 4
+      } else if(b === 2) {
+        return 2
+      } else if(b >= 0) {
+        return 1<<b
+      }
+    }
+  }
+  return 0
+}
+exports.buttons = mouseButtons
+
+function mouseElement(ev) {
+  return ev.target || ev.srcElement || window
+}
+exports.element = mouseElement
+
+function mouseRelativeX(ev) {
+  if(typeof ev === 'object') {
+    if('offsetX' in ev) {
+      return ev.offsetX
+    }
+    var target = mouseElement(ev)
+    var bounds = target.getBoundingClientRect()
+    return ev.clientX - bounds.left
+  }
+  return 0
+}
+exports.x = mouseRelativeX
+
+function mouseRelativeY(ev) {
+  if(typeof ev === 'object') {
+    if('offsetY' in ev) {
+      return ev.offsetY
+    }
+    var target = mouseElement(ev)
+    var bounds = target.getBoundingClientRect()
+    return ev.clientY - bounds.top
+  }
+  return 0
+}
+exports.y = mouseRelativeY
+
+},{}],173:[function(require,module,exports){
+module.exports = function parseUnit(str, out) {
+    if (!out)
+        out = [ 0, '' ]
+
+    str = String(str)
+    var num = parseFloat(str, 10)
+    out[0] = num
+    out[1] = str.match(/[\d.\-\+]*\s*(.*)/)[1] || ''
+    return out
+}
+},{}],174:[function(require,module,exports){
+'use strict'
+
+var parseUnit = require('parse-unit')
+
+module.exports = toPX
+
+var PIXELS_PER_INCH = 96
+
+function getPropertyInPX(element, prop) {
+  var parts = parseUnit(getComputedStyle(element).getPropertyValue(prop))
+  return parts[0] * toPX(parts[1], element)
+}
+
+//This brutal hack is needed
+function getSizeBrutal(unit, element) {
+  var testDIV = document.createElement('div')
+  testDIV.style['font-size'] = '128' + unit
+  element.appendChild(testDIV)
+  var size = getPropertyInPX(testDIV, 'font-size') / 128
+  element.removeChild(testDIV)
+  return size
+}
+
+function toPX(str, element) {
+  element = element || document.body
+  str = (str || 'px').trim().toLowerCase()
+  if(element === window || element === document) {
+    element = document.body 
+  }
+  switch(str) {
+    case '%':  //Ambiguous, not sure if we should use width or height
+      return element.clientHeight / 100.0
+    case 'ch':
+    case 'ex':
+      return getSizeBrutal(str, element)
+    case 'em':
+      return getPropertyInPX(element, 'font-size')
+    case 'rem':
+      return getPropertyInPX(document.body, 'font-size')
+    case 'vw':
+      return window.innerWidth/100
+    case 'vh':
+      return window.innerHeight/100
+    case 'vmin':
+      return Math.min(window.innerWidth, window.innerHeight) / 100
+    case 'vmax':
+      return Math.max(window.innerWidth, window.innerHeight) / 100
+    case 'in':
+      return PIXELS_PER_INCH
+    case 'cm':
+      return PIXELS_PER_INCH / 2.54
+    case 'mm':
+      return PIXELS_PER_INCH / 25.4
+    case 'pt':
+      return PIXELS_PER_INCH / 72
+    case 'pc':
+      return PIXELS_PER_INCH / 6
+  }
+  return 1
+}
+},{"parse-unit":173}],175:[function(require,module,exports){
+'use strict'
+
+var toPX = require('to-px')
+
+module.exports = mouseWheelListen
+
+function mouseWheelListen(element, callback, noScroll) {
+  if(typeof element === 'function') {
+    noScroll = !!callback
+    callback = element
+    element = window
+  }
+  var lineHeight = toPX('ex', element)
+  element.addEventListener('wheel', function(ev) {
+    if(noScroll) {
+      ev.preventDefault()
+    }
+    var dx = ev.deltaX || 0
+    var dy = ev.deltaY || 0
+    var dz = ev.deltaZ || 0
+    var mode = ev.deltaMode
+    var scale = 1
+    switch(mode) {
+      case 1:
+        scale = lineHeight
+      break
+      case 2:
+        scale = window.innerHeight
+      break
+    }
+    dx *= scale
+    dy *= scale
+    dz *= scale
+    if(dx || dy || dz) {
+      return callback(dx, dy, dz)
+    }
+  })
+}
+},{"to-px":174}],176:[function(require,module,exports){
+arguments[4][46][0].apply(exports,arguments)
+},{"./lib/vtext":177,"dup":46}],177:[function(require,module,exports){
+arguments[4][47][0].apply(exports,arguments)
+},{"cdt2d":178,"clean-pslg":196,"dup":47,"ndarray":242,"planar-graph-to-polyline":266,"simplify-planar-graph":276,"surface-nets":298}],178:[function(require,module,exports){
+arguments[4][48][0].apply(exports,arguments)
+},{"./lib/delaunay":179,"./lib/filter":180,"./lib/monotone":181,"./lib/triangulation":182,"dup":48}],179:[function(require,module,exports){
+arguments[4][49][0].apply(exports,arguments)
+},{"binary-search-bounds":183,"dup":49,"robust-in-sphere":184}],180:[function(require,module,exports){
+arguments[4][50][0].apply(exports,arguments)
+},{"binary-search-bounds":183,"dup":50}],181:[function(require,module,exports){
+arguments[4][51][0].apply(exports,arguments)
+},{"binary-search-bounds":183,"dup":51,"robust-orientation":195}],182:[function(require,module,exports){
+arguments[4][52][0].apply(exports,arguments)
+},{"binary-search-bounds":183,"dup":52}],183:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],184:[function(require,module,exports){
+arguments[4][53][0].apply(exports,arguments)
+},{"dup":53,"robust-scale":186,"robust-subtract":187,"robust-sum":188,"two-product":189}],185:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],186:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":189,"two-sum":185}],187:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],188:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],189:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],190:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],191:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":194,"two-sum":190}],192:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],193:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],194:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],195:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":191,"robust-subtract":192,"robust-sum":193,"two-product":194}],196:[function(require,module,exports){
+arguments[4][65][0].apply(exports,arguments)
+},{"./lib/rat-seg-intersect":197,"big-rat":201,"big-rat/cmp":199,"big-rat/to-float":216,"box-intersect":217,"compare-cell":227,"dup":65,"nextafter":228,"rat-vec":231,"robust-segment-intersect":240,"union-find":241}],197:[function(require,module,exports){
+arguments[4][66][0].apply(exports,arguments)
+},{"big-rat/div":200,"big-rat/mul":210,"big-rat/sign":214,"big-rat/sub":215,"big-rat/to-float":216,"dup":66,"rat-vec/add":230,"rat-vec/muls":232,"rat-vec/sub":233}],198:[function(require,module,exports){
+arguments[4][67][0].apply(exports,arguments)
+},{"./lib/rationalize":208,"dup":67}],199:[function(require,module,exports){
+arguments[4][68][0].apply(exports,arguments)
+},{"dup":68}],200:[function(require,module,exports){
+arguments[4][69][0].apply(exports,arguments)
+},{"./lib/rationalize":208,"dup":69}],201:[function(require,module,exports){
+arguments[4][70][0].apply(exports,arguments)
+},{"./div":200,"./is-rat":202,"./lib/is-bn":206,"./lib/num-to-bn":207,"./lib/rationalize":208,"./lib/str-to-bn":209,"dup":70}],202:[function(require,module,exports){
+arguments[4][71][0].apply(exports,arguments)
+},{"./lib/is-bn":206,"dup":71}],203:[function(require,module,exports){
+arguments[4][72][0].apply(exports,arguments)
+},{"bn.js":212,"dup":72}],204:[function(require,module,exports){
+arguments[4][73][0].apply(exports,arguments)
+},{"dup":73}],205:[function(require,module,exports){
+arguments[4][74][0].apply(exports,arguments)
+},{"bit-twiddle":211,"double-bits":213,"dup":74}],206:[function(require,module,exports){
+arguments[4][75][0].apply(exports,arguments)
+},{"bn.js":212,"dup":75}],207:[function(require,module,exports){
+arguments[4][76][0].apply(exports,arguments)
+},{"bn.js":212,"double-bits":213,"dup":76}],208:[function(require,module,exports){
+arguments[4][77][0].apply(exports,arguments)
+},{"./bn-sign":203,"./num-to-bn":207,"dup":77}],209:[function(require,module,exports){
+arguments[4][78][0].apply(exports,arguments)
+},{"bn.js":212,"dup":78}],210:[function(require,module,exports){
+arguments[4][79][0].apply(exports,arguments)
+},{"./lib/rationalize":208,"dup":79}],211:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],212:[function(require,module,exports){
+arguments[4][81][0].apply(exports,arguments)
+},{"dup":81}],213:[function(require,module,exports){
+arguments[4][82][0].apply(exports,arguments)
+},{"buffer":301,"dup":82}],214:[function(require,module,exports){
+arguments[4][83][0].apply(exports,arguments)
+},{"./lib/bn-sign":203,"dup":83}],215:[function(require,module,exports){
+arguments[4][84][0].apply(exports,arguments)
+},{"./lib/rationalize":208,"dup":84}],216:[function(require,module,exports){
+arguments[4][85][0].apply(exports,arguments)
+},{"./lib/bn-to-num":204,"./lib/ctz":205,"dup":85}],217:[function(require,module,exports){
+arguments[4][86][0].apply(exports,arguments)
+},{"./lib/intersect":219,"./lib/sweep":223,"dup":86,"typedarray-pool":226}],218:[function(require,module,exports){
+arguments[4][87][0].apply(exports,arguments)
+},{"dup":87}],219:[function(require,module,exports){
+arguments[4][88][0].apply(exports,arguments)
+},{"./brute":218,"./median":220,"./partition":221,"./sweep":223,"bit-twiddle":224,"dup":88,"typedarray-pool":226}],220:[function(require,module,exports){
+arguments[4][89][0].apply(exports,arguments)
+},{"./partition":221,"dup":89}],221:[function(require,module,exports){
+arguments[4][90][0].apply(exports,arguments)
+},{"dup":90}],222:[function(require,module,exports){
+arguments[4][91][0].apply(exports,arguments)
+},{"dup":91}],223:[function(require,module,exports){
+arguments[4][92][0].apply(exports,arguments)
+},{"./sort":222,"bit-twiddle":224,"dup":92,"typedarray-pool":226}],224:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],225:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],226:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":224,"buffer":301,"dup":21}],227:[function(require,module,exports){
+arguments[4][94][0].apply(exports,arguments)
+},{"dup":94}],228:[function(require,module,exports){
+arguments[4][95][0].apply(exports,arguments)
+},{"double-bits":229,"dup":95}],229:[function(require,module,exports){
+arguments[4][82][0].apply(exports,arguments)
+},{"buffer":301,"dup":82}],230:[function(require,module,exports){
+arguments[4][97][0].apply(exports,arguments)
+},{"big-rat/add":198,"dup":97}],231:[function(require,module,exports){
+arguments[4][98][0].apply(exports,arguments)
+},{"big-rat":201,"dup":98}],232:[function(require,module,exports){
+arguments[4][99][0].apply(exports,arguments)
+},{"big-rat":201,"big-rat/mul":210,"dup":99}],233:[function(require,module,exports){
+arguments[4][100][0].apply(exports,arguments)
+},{"big-rat/sub":215,"dup":100}],234:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],235:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":238,"two-sum":234}],236:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],237:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],238:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],239:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":235,"robust-subtract":236,"robust-sum":237,"two-product":238}],240:[function(require,module,exports){
+arguments[4][107][0].apply(exports,arguments)
+},{"dup":107,"robust-orientation":239}],241:[function(require,module,exports){
+arguments[4][108][0].apply(exports,arguments)
+},{"dup":108}],242:[function(require,module,exports){
+arguments[4][16][0].apply(exports,arguments)
+},{"dup":16,"iota-array":243,"is-buffer":244}],243:[function(require,module,exports){
+arguments[4][17][0].apply(exports,arguments)
+},{"dup":17}],244:[function(require,module,exports){
+arguments[4][18][0].apply(exports,arguments)
+},{"dup":18}],245:[function(require,module,exports){
+arguments[4][112][0].apply(exports,arguments)
+},{"dup":112,"edges-to-adjacency-list":246}],246:[function(require,module,exports){
+arguments[4][113][0].apply(exports,arguments)
+},{"dup":113,"uniq":265}],247:[function(require,module,exports){
+arguments[4][114][0].apply(exports,arguments)
+},{"compare-angle":248,"dup":114}],248:[function(require,module,exports){
+arguments[4][115][0].apply(exports,arguments)
+},{"dup":115,"robust-orientation":262,"robust-product":250,"robust-sum":263,"signum":251,"two-sum":252}],249:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":264,"two-sum":252}],250:[function(require,module,exports){
+arguments[4][117][0].apply(exports,arguments)
+},{"dup":117,"robust-scale":249,"robust-sum":263}],251:[function(require,module,exports){
+arguments[4][118][0].apply(exports,arguments)
+},{"dup":118}],252:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],253:[function(require,module,exports){
+arguments[4][120][0].apply(exports,arguments)
+},{"dup":120}],254:[function(require,module,exports){
+arguments[4][121][0].apply(exports,arguments)
+},{"binary-search-bounds":253,"dup":121}],255:[function(require,module,exports){
+arguments[4][122][0].apply(exports,arguments)
+},{"dup":122,"robust-orientation":262}],256:[function(require,module,exports){
+arguments[4][123][0].apply(exports,arguments)
+},{"dup":123}],257:[function(require,module,exports){
+arguments[4][124][0].apply(exports,arguments)
+},{"./lib/order-segments":255,"binary-search-bounds":253,"dup":124,"functional-red-black-tree":256,"robust-orientation":262}],258:[function(require,module,exports){
+arguments[4][125][0].apply(exports,arguments)
+},{"binary-search-bounds":253,"dup":125,"interval-tree-1d":254,"robust-orientation":262,"slab-decomposition":257}],259:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],260:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":264,"two-sum":259}],261:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],262:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":260,"robust-subtract":261,"robust-sum":263,"two-product":264}],263:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],264:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],265:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],266:[function(require,module,exports){
+arguments[4][133][0].apply(exports,arguments)
+},{"./lib/trim-leaves":245,"dup":133,"edges-to-adjacency-list":246,"planar-dual":247,"point-in-big-polygon":258,"robust-sum":263,"two-product":264,"uniq":265}],267:[function(require,module,exports){
+arguments[4][54][0].apply(exports,arguments)
+},{"dup":54}],268:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55,"two-product":271,"two-sum":267}],269:[function(require,module,exports){
+arguments[4][56][0].apply(exports,arguments)
+},{"dup":56}],270:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"dup":57}],271:[function(require,module,exports){
+arguments[4][58][0].apply(exports,arguments)
+},{"dup":58}],272:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"robust-scale":268,"robust-subtract":269,"robust-sum":270,"two-product":271}],273:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],274:[function(require,module,exports){
+arguments[4][141][0].apply(exports,arguments)
+},{"dup":141}],275:[function(require,module,exports){
+arguments[4][142][0].apply(exports,arguments)
+},{"bit-twiddle":273,"dup":142,"union-find":274}],276:[function(require,module,exports){
+arguments[4][143][0].apply(exports,arguments)
+},{"dup":143,"robust-orientation":272,"simplicial-complex":275}],277:[function(require,module,exports){
+arguments[4][144][0].apply(exports,arguments)
+},{"dup":144,"typedarray-pool":280}],278:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],279:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],280:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":278,"buffer":301,"dup":21}],281:[function(require,module,exports){
+arguments[4][145][0].apply(exports,arguments)
+},{"dup":145}],282:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],283:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],284:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":282,"buffer":301,"dup":21}],285:[function(require,module,exports){
+arguments[4][146][0].apply(exports,arguments)
+},{"dup":146,"typedarray-pool":284}],286:[function(require,module,exports){
+arguments[4][147][0].apply(exports,arguments)
+},{"dup":147,"invert-permutation":287,"typedarray-pool":290}],287:[function(require,module,exports){
+arguments[4][148][0].apply(exports,arguments)
+},{"dup":148}],288:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],289:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],290:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":288,"buffer":301,"dup":21}],291:[function(require,module,exports){
+arguments[4][149][0].apply(exports,arguments)
+},{"dup":149,"gamma":281,"permutation-parity":285,"permutation-rank":286}],292:[function(require,module,exports){
+arguments[4][150][0].apply(exports,arguments)
+},{"cwise-compiler":293,"dup":150}],293:[function(require,module,exports){
+arguments[4][12][0].apply(exports,arguments)
+},{"./lib/thunk.js":295,"dup":12}],294:[function(require,module,exports){
+arguments[4][13][0].apply(exports,arguments)
+},{"dup":13,"uniq":296}],295:[function(require,module,exports){
+arguments[4][14][0].apply(exports,arguments)
+},{"./compile.js":294,"dup":14}],296:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],297:[function(require,module,exports){
+arguments[4][155][0].apply(exports,arguments)
+},{"./lib/zc-core":292,"dup":155}],298:[function(require,module,exports){
+arguments[4][156][0].apply(exports,arguments)
+},{"dup":156,"ndarray-extract-contour":277,"triangulate-hypercube":291,"zero-crossings":297}],299:[function(require,module,exports){
+arguments[4][157][0].apply(exports,arguments)
+},{"_process":305,"dup":157,"vectorize-text":176}],300:[function(require,module,exports){
 'use strict'
 
 module.exports = createGLPlot2D
@@ -15159,6 +16320,7 @@ function GLPlot2D(gl) {
   this.text             = null
   this.line             = null
   this.objects          = []
+  this.overlays         = []
 
   this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
@@ -15195,6 +16357,7 @@ return function() {
   var grid       = this.grid
   var line       = this.line
   var text       = this.text
+  var objects    = this.objects
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -15273,7 +16436,10 @@ return function() {
     }
   }
 
-  //TODO: Draw traces
+  //Draw traces
+  for(var i=0; i<objects.length; ++i) {
+    objects[i].draw()
+  }
 
   //Return viewport to default
   gl.viewport(
@@ -15479,7 +16645,7 @@ function createGLPlot2D(options) {
   return plot
 }
 
-},{"./lib/grid":2,"./lib/line":3,"./lib/text":5}],160:[function(require,module,exports){
+},{"./lib/grid":2,"./lib/line":3,"./lib/text":5}],301:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -16812,7 +17978,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":161,"ieee754":162,"is-array":163}],161:[function(require,module,exports){
+},{"base64-js":302,"ieee754":303,"is-array":304}],302:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -16938,7 +18104,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],162:[function(require,module,exports){
+},{}],303:[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -17024,7 +18190,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],163:[function(require,module,exports){
+},{}],304:[function(require,module,exports){
 
 /**
  * isArray
@@ -17059,7 +18225,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],164:[function(require,module,exports){
+},{}],305:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
