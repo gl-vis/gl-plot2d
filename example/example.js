@@ -35,8 +35,8 @@ var plot = createPlot(options)
 var lastX = 0, lastY = 0
 mouseChange(function(buttons, x, y) {
   if(buttons & 1) {
-    var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewPixels[2]-plot.viewPixels[0])
-    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewPixels[3] - plot.viewPixels[1])
+    var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
+    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
 
     dataBox[0] += dx
     dataBox[1] += dy

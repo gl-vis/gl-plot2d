@@ -18,14 +18,38 @@ function GLPlot2D(gl) {
 
   this.pixelRatio       = 1
 
-  this.tickPad          = [15, 15]
-  this.tickEnable       = [true, true]
-  this.tickMirror       = [false, false]
+  this.tickMarkLength   = [0,0,0,0]
+  this.tickMarkWidth    = [0,0,0,0]
+  this.tickMarkColor    = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+
+  this.tickPad          = [15,15,15,15]
+  this.tickAngle        = [0,0,0,0]
+  this.tickEnable       = [true,true,true,true]
+  this.tickColor        = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+
+  this.labelPad         = [15,15,15,15]
+  this.labelAngle       = [0,Math.PI/2,0,3.0*Math.PI/2]
+  this.labelEnable      = [true,true,true,true]
+  this.labelColor       = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+
+  this.titleCenter      = [0,0]
+  this.titleEnable      = true
+  this.titleAngle       = 0
+  this.titleColor       = [0,0,0,1]
 
   this.borderColor      = [0,0,0,0]
   this.backgroundColor  = [0,0,0,0]
 
-  this.zeroLineEnable   = [true,true]
+  this.zeroLineEnable   = [true, true]
   this.zeroLineWidth    = [4, 4]
   this.zeroLineColor    = [0, 0, 0, 1]
 
@@ -77,15 +101,29 @@ function lerp(a, b, t) {
   return Math.floor((1.0-s)*a + s*b)|0
 }
 
-proto.draw = function() {
+proto.draw = (function() {
+
+var TICK_MARK_BOX = [0,0,0,0]
+
+return function() {
   var gl         = this.gl
   var screenBox  = this.screenBox
   var viewPixels = this.viewBox
   var grid       = this.grid
 
-  //Set viewport and scissor
+  //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
-  gl.enable(gl.DEPTH_TEST)
+
+  //Turn off depth buffer
+  gl.disable(gl.DEPTH_TEST)
+  gl.depthMask(false)
+
+  //Configure premultiplied alpha blending
+  gl.enable(gl.BLEND)
+  gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+  gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+
+  //Set viewport for background
   gl.viewport(
     screenBox[0],
     screenBox[1],
@@ -104,7 +142,8 @@ proto.draw = function() {
     borderColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-  //Draw tick spikes
+  //TODO: Draw tick marks
+
 
   //Draw center pane
   gl.scissor(
@@ -125,12 +164,10 @@ proto.draw = function() {
     backgroundColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT)
 
-  gl.enable(gl.BLEND)
-  gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-  gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
-
   //Draw grid
   grid.draw()
+
+  //TODO: Draw zero line
 
   //Draw traces
 
@@ -153,19 +190,27 @@ proto.draw = function() {
   var borderLineColor  = this.borderLineColor
   line.bind()
   if(borderLineEnable[0]) {
-    line.drawLine(viewPixels[0], viewPixels[1], viewPixels[0], viewPixels[3],
+    line.drawLine(
+      viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1],
+      viewPixels[0], viewPixels[3] + 0.5*borderLineWidth[3],
       borderLineWidth[0], borderLineColor[0])
   }
   if(borderLineEnable[1]) {
-    line.drawLine(viewPixels[0], viewPixels[1], viewPixels[2], viewPixels[1],
+    line.drawLine(
+      viewPixels[0] - 0.5*borderLineWidth[0], viewPixels[1],
+      viewPixels[2] + 0.5*borderLineWidth[2], viewPixels[1],
       borderLineWidth[1], borderLineColor[1])
   }
   if(borderLineEnable[2]) {
-    line.drawLine(viewPixels[2], viewPixels[1], viewPixels[2], viewPixels[3],
+    line.drawLine(
+      viewPixels[2], viewPixels[1] - 0.5*borderLineWidth[1],
+      viewPixels[2], viewPixels[3] + 0.5*borderLineWidth[3],
       borderLineWidth[2], borderLineColor[2])
   }
   if(borderLineEnable[3]) {
-    line.drawLine(viewPixels[0], viewPixels[3], viewPixels[2], viewPixels[3],
+    line.drawLine(
+      viewPixels[0] - 0.5*borderLineWidth[0], viewPixels[3],
+      viewPixels[2] + 0.5*borderLineWidth[2], viewPixels[3],
       borderLineWidth[3], borderLineColor[3])
   }
 
@@ -174,24 +219,34 @@ proto.draw = function() {
   text.bind()
   for(var i=0; i<2; ++i) {
     text.drawTicks(i)
-    text.drawLabel(i)
   }
-  text.drawTitle()
+  if(this.titleEnable) {
+    text.drawTitle()
+  }
 
   //Draw spikes
 
-  //Draw overlay elements
+  //Draw other overlay elements
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
   gl.disable(gl.BLEND)
+  gl.depthMask(true)
+}
+})()
+
+function deepClone(array) {
+  var result = array.slice()
+  for(var i=0; i<result.length; ++i) {
+    result[i] = result[i].slice()
+  }
+  return result
 }
 
 proto.update = function(options) {
   options = options || {}
 
   var gl = this.gl
-  this.pixelRatio      = options.pixelRatio || 1
   this.screenBox       = (options.screenBox ||
     [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]).slice()
   this.dataBox         = (options.dataBox || [-10,-10,10,10]).slice()
@@ -200,15 +255,44 @@ proto.update = function(options) {
      0.125*(this.screenBox[3]-this.screenBox[1]),
      0.875*(this.screenBox[2]-this.screenBox[0]),
      0.875*(this.screenBox[3]-this.screenBox[1])]).slice()
+
+  var screenBox = this.screenBox
+
+  this.pixelRatio      = options.pixelRatio || 1
+
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
+
   this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
-  this.tickPad         = (options.tickPad || [15, 15]).slice()
-  this.tickEnable      = (options.tickEnable || [true,true]).slice()
-  this.tickMirror      = (options.tickMirror || [false,false]).slice()
-  this.axesBorder      = (options.axesBorder ||
-    [true, true, true, true]).slice()
-  this.axesBorderWidth = options.axesBorderWidth || 4
+  this.gridLineColor   = deepClone(options.gridLine || [[0.5,0.5,0.5,1],[0.5,0.5,0.5,1]])
+
+  this.tickMarkLength   = (options.tickMarkLength || [0,0,0,0]).slice()
+  this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
+
+  this.titleCenter      = (options.titleCenter || [
+    0.5*(screenBox[0]+screenBox[2]),screenBox[3]-20]).slice()
+  this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
+  this.titleAngle       = options.titleAngle || 0
+  this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
+
+  this.labelPad         = (options.labelPad || [15,15,15,15]).slice()
+  this.labelAngle       = (options.labelAngle || [0,Math.PI/2,0,3.0*Math.PI/2]).slice()
+  this.labelEnable      = (options.labelEnable || [true,true,true,true]).slice()
+  this.labelColor       = deepClone(options.labelColor || [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
+
+  this.tickPad         = (options.tickPad || [15,15,15,15]).slice()
+  this.tickAngle       = (options.tickAngle || [0,0,0,0]).slice()
+  this.tickEnable      = (options.tickEnable || [true,true,true,true]).slice()
+  this.tickColor       = deepClone(options.tickColor || [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
+
+  this.borderLineEnable = (options.borderLineEnable ||
+                            [true,true,true,true]).slice()
+  this.borderLineWidth  = (options.borderLineWidth || [2,2,2,2]).slice()
+  this.borderLineColor  = deepClone(options.borderLineColor ||
+                          [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]])
 
   var ticks = options.ticks || [ [], [] ]
 
