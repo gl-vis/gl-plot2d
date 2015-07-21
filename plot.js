@@ -66,6 +66,7 @@ function GLPlot2D(gl) {
   this.text             = null
   this.line             = null
   this.objects          = []
+  this.overlays         = []
 
   this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
@@ -102,6 +103,7 @@ return function() {
   var grid       = this.grid
   var line       = this.line
   var text       = this.text
+  var objects    = this.objects
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -180,7 +182,10 @@ return function() {
     }
   }
 
-  //TODO: Draw traces
+  //Draw traces
+  for(var i=0; i<objects.length; ++i) {
+    objects[i].draw()
+  }
 
   //Return viewport to default
   gl.viewport(
