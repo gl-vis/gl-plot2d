@@ -92,9 +92,7 @@ function lerp(a, b, t) {
 }
 
 proto.draw = (function() {
-
 var TICK_MARK_BOX = [0,0,0,0]
-
 return function() {
   var gl         = this.gl
   var screenBox  = this.screenBox
@@ -117,12 +115,7 @@ return function() {
   gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
   gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
 
-  //Set viewport for background
-  gl.viewport(
-    screenBox[0],
-    screenBox[1],
-    screenBox[2]-screenBox[0],
-    screenBox[3]-screenBox[1])
+  //Draw border
   gl.scissor(
     screenBox[0],
     screenBox[1],
@@ -135,8 +128,6 @@ return function() {
     borderColor[2],
     borderColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-  //TODO: Draw tick marks
 
   //Draw center pane
   gl.scissor(
@@ -203,6 +194,8 @@ return function() {
     screenBox[2]-screenBox[0],
     screenBox[3]-screenBox[1])
 
+  //TODO: Draw tick marks
+
   //Draw border lines
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
@@ -242,9 +235,9 @@ return function() {
     text.drawTitle()
   }
 
-  //Draw spikes
+  //TODO: Draw spikes
 
-  //Draw other overlay elements
+  //TODO: Draw other overlay elements (select boxes, etc.)
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
@@ -287,16 +280,16 @@ proto.update = function(options) {
 
   this.gridLineEnable  = (options.gridLineEnable || [true,true]).slice()
   this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
-  this.gridLineColor   = deepClone(options.gridLine || [[0.5,0.5,0.5,1],[0.5,0.5,0.5,1]])
+  this.gridLineColor   = deepClone(options.gridLine ||
+    [[0.5,0.5,0.5,1],[0.5,0.5,0.5,1]])
 
   this.zeroLineEnable   = (options.zeroLineEnable || [true, true]).slice()
   this.zeroLineWidth    = (options.zeroLineWidth || [4, 4]).slice()
-  this.zeroLineColor    = deepClone(options.zeroLineColor || [[0, 0, 0, 1],[0, 0, 0, 1]])
-
+  this.zeroLineColor    = deepClone(options.zeroLineColor ||
+    [[0, 0, 0, 1],[0, 0, 0, 1]])
 
   this.tickMarkLength   = (options.tickMarkLength || [0,0,0,0]).slice()
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
-
 
   this.titleCenter      = (options.titleCenter || [
     0.5*(screenBox[0]+screenBox[2]),screenBox[3]-20]).slice()
@@ -305,14 +298,17 @@ proto.update = function(options) {
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
 
   this.labelPad         = (options.labelPad || [15,15,15,15]).slice()
-  this.labelAngle       = (options.labelAngle || [0,Math.PI/2,0,3.0*Math.PI/2]).slice()
+  this.labelAngle       = (options.labelAngle ||
+    [0,Math.PI/2,0,3.0*Math.PI/2]).slice()
   this.labelEnable      = (options.labelEnable || [true,true,true,true]).slice()
-  this.labelColor       = deepClone(options.labelColor || [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
+  this.labelColor       = deepClone(options.labelColor ||
+    [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
 
   this.tickPad         = (options.tickPad || [15,15,15,15]).slice()
   this.tickAngle       = (options.tickAngle || [0,0,0,0]).slice()
   this.tickEnable      = (options.tickEnable || [true,true,true,true]).slice()
-  this.tickColor       = deepClone(options.tickColor || [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
+  this.tickColor       = deepClone(options.tickColor ||
+    [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
 
   this.borderLineEnable = (options.borderLineEnable ||
                             [true,true,true,true]).slice()
@@ -356,6 +352,8 @@ proto.update = function(options) {
     titleSize:  options.titleSize || 18,
     titleFont:  options.titleFont || 'sans-serif'
   })
+
+  this.setDirty()
 }
 
 proto.dispose = function() {
