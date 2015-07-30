@@ -2,12 +2,16 @@
 
 module.exports = createGLPlot2D
 
+var createPick = require('gl-select-static')
+
 var createGrid = require('./lib/grid')
 var createText = require('./lib/text')
 var createLine = require('./lib/line')
 
-function GLPlot2D(gl) {
+function GLPlot2D(gl, pickBuffer) {
   this.gl               = gl
+  this.pickBuffer       = pickBuffer
+
   this.screenBox        = [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]
   this.viewBox          = [0, 0, 0, 0]
   this.dataBox          = [-10, -10, 10, 10]
@@ -70,8 +74,12 @@ function GLPlot2D(gl) {
 
   this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
-  this.dirty      = false
-  this.pickDirty  = false
+  this.dirty        = false
+  this.pickDirty    = false
+  this.pickDelay    = 120
+  this.pickRadius   = 10
+  this._pickTimeout = null
+  this._drawPick    = this.drawPick.bind(this)
 }
 
 var proto = GLPlot2D.prototype
@@ -79,7 +87,6 @@ var proto = GLPlot2D.prototype
 proto.redraw = function() {
   if(this.dirty) {
     this.draw()
-    this.dirty = false
   }
 }
 
@@ -104,6 +111,18 @@ return function() {
   var line       = this.line
   var text       = this.text
   var objects    = this.objects
+
+  if(this.pickDirty) {
+    if(this._pickTimeout) {
+      clearTimeout(this._pickTimeout)
+    }
+    this.pickDirty = false
+    this._pickTimeout = setTimeout(this._drawPick, this.pickDelay)
+  }
+  this.dirty = true
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -251,6 +270,56 @@ return function() {
 }
 })()
 
+proto.drawPick = (function() {
+
+return function() {
+  var pickBuffer = this.pickBuffer
+  var gl = this.gl
+
+  this._pickTimeout = null
+  pickBuffer.begin()
+
+  var pickOffset = 1
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    pickOffset += objects[i].drawPick(pickOffset)
+  }
+
+  pickBuffer.end()
+}
+})()
+
+proto.pick = (function() {
+return function(x, y) {
+  var pixelRatio     = this.pixelRatio
+  var pickPixelRatio = this.pickPixelRatio
+  var viewBox        = this.viewBox
+
+  var scrX = Math.round((x - viewBox[0] / pixelRatio) * pickPixelRatio)|0
+  var scrY = Math.round((y - viewBox[1] / pixelRatio) * pickPixelRatio)|0
+
+  var pickResult = this.pickBuffer.query(scrX, scrY, this.pickRadius)
+  if(!pickResult) {
+    return null
+  }
+
+  var pickValue = pickResult.id +
+    (pickResult.value[0]<<8)  +
+    (pickResult.value[1]<<16) +
+    (pickResult.value[2]<<24)
+
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    var result = objects[i].pick(scrX, scrY, pickValue)
+    if(result) {
+      return result
+    }
+  }
+
+  return null
+}
+})()
+
 function deepClone(array) {
   var result = array.slice()
   for(var i=0; i<result.length; ++i) {
@@ -263,22 +332,53 @@ function compareTicks(a, b) {
   return a.x - b.x
 }
 
+proto.setScreenBox = function(nbox) {
+  this.setDirty()
+}
+
+proto.setDataBox = function(nbox) {
+  var dataBox = this.dataBox
+
+  dataBox[0] = nbox[0]
+  dataBox[1] = nbox[1]
+  dataBox[2] = nbox[2]
+  dataBox[3] = nbox[3]
+
+  this.setDirty()
+}
+
+proto.setViewBox = function(nbox) {
+  var pixelRatio = this.pixelRatio
+  var viewBox = this.viewBox
+  viewBox[0] = Math.round(nbox[0] * pixelRatio)|0
+  viewBox[1] = Math.round(nbox[1] * pixelRatio)|0
+  viewBox[2] = Math.round(nbox[2] * pixelRatio)|0
+  viewBox[3] = Math.round(nbox[3] * pixelRatio)|0
+
+  var pickPixelRatio = this.pickPixelRatio
+  this.pickBuffer.shape = [
+    Math.round((nbox[2] - nbox[0]) * pickPixelRatio)|0,
+    Math.round((nbox[3] - nbox[1]) * pickPixelRatio)|0 ]
+
+  this.setDirty()
+}
+
 proto.update = function(options) {
   options = options || {}
 
   var gl = this.gl
+  this.pixelRatio      = options.pixelRatio || 1
+  var pixelRatio       = this.pixelRatio
+  this.pickPixelRatio  = Math.max(pixelRatio, 1)
   this.screenBox       = (options.screenBox ||
     [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]).slice()
   this.dataBox         = (options.dataBox || [-10,-10,10,10]).slice()
-  this.viewBox         = (options.viewBox ||
-    [0.125*(this.screenBox[2]-this.screenBox[0]),
-     0.125*(this.screenBox[3]-this.screenBox[1]),
-     0.875*(this.screenBox[2]-this.screenBox[0]),
-     0.875*(this.screenBox[3]-this.screenBox[1])]).slice()
-
   var screenBox = this.screenBox
-
-  this.pixelRatio      = options.pixelRatio || 1
+  this.setViewBox(options.viewBox ||
+    [0.125*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
+     0.125*(this.screenBox[3]-this.screenBox[1])/pixelRatio,
+     0.875*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
+     0.875*(this.screenBox[3]-this.screenBox[1])/pixelRatio])
 
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
@@ -297,7 +397,7 @@ proto.update = function(options) {
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
 
   this.titleCenter      = (options.titleCenter || [
-    0.5*(screenBox[0]+screenBox[2]),screenBox[3]-20]).slice()
+    0.5*(screenBox[0]+screenBox[2])/pixelRatio,(screenBox[3]-40)/pixelRatio]).slice()
   this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
   this.titleAngle       = options.titleAngle || 0
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
@@ -383,7 +483,8 @@ proto.removeObject = function(object) {
 
 function createGLPlot2D(options) {
   var gl = options.gl
-  var plot = new GLPlot2D(gl, null)
+  var pickBuffer = createPick(gl, [gl.drawingBufferWidth, gl.drawingBufferHeight])
+  var plot = new GLPlot2D(gl, pickBuffer)
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
   plot.line = createLine(plot)
