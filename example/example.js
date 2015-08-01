@@ -52,12 +52,13 @@ plot.addObject(scatter)
 
 var lastX = 0, lastY = 0
 mouseChange(function(buttons, x, y) {
+  y = window.innerHeight - y
   x *= plot.pixelRatio
   y *= plot.pixelRatio
 
   if(buttons & 1) {
     var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
-    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
+    var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
 
     dataBox[0] += dx
     dataBox[1] += dy
@@ -68,7 +69,7 @@ mouseChange(function(buttons, x, y) {
   } else {
     var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
     if(result) {
-      console.log(result)
+      plot.setSpike(result.dataCoord[0], result.dataCoord[1])
     }
   }
   lastX = x
@@ -93,7 +94,7 @@ mouseWheel(function(dx, dy, dz) {
 
 function render() {
   requestAnimationFrame(render)
-  plot.redraw()
+  plot.draw()
 }
 
 render()

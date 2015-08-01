@@ -65,6 +65,14 @@ function GLPlot2D(gl, pickBuffer) {
                            [0,0,0,1],
                            [0,0,0,1]]
 
+  this.spikeEnable      = [true, true, false, false]
+  this.spikeWidth       = [1,1,1,1]
+  this.spikeColor       = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+  this.spikeCenter      = [0,0]
+
   //Drawing parameters
   this.grid             = null
   this.text             = null
@@ -84,14 +92,14 @@ function GLPlot2D(gl, pickBuffer) {
 
 var proto = GLPlot2D.prototype
 
-proto.redraw = function() {
-  if(this.dirty) {
-    this.draw()
-  }
-}
-
 proto.setDirty = function() {
   this.dirty = this.pickDirty = true
+}
+
+proto.setSpike = function(x, y) {
+  this.spikeCenter[0] = +x
+  this.spikeCenter[1] = +y
+  this.dirty = true
 }
 
 function lerp(a, b, t) {
@@ -119,10 +127,13 @@ return function() {
     this.pickDirty = false
     this._pickTimeout = setTimeout(this._drawPick, this.pickDelay)
   }
-  this.dirty = true
+
+  if(!this.dirty) {
+    return
+  }
+  this.dirty = false
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -220,11 +231,50 @@ return function() {
 
   //TODO: Draw tick marks
 
+  //Draw line elements
+  line.bind()
+
+  //Draw spikes
+  var spikeEnable = this.spikeEnable
+  var spikeWidth  = this.spikeWidth
+  var spikeColor  = this.spikeColor
+  var spikeCenter = this.spikeCenter
+  if(dataBox[0] <= spikeCenter[0] && spikeCenter[0] <= dataBox[2] &&
+     dataBox[1] <= spikeCenter[1] && spikeCenter[1] <= dataBox[3]) {
+
+    var centerX = viewPixels[0] + (spikeCenter[0] - dataBox[0]) / (dataBox[2] - dataBox[0]) * (viewPixels[2] - viewPixels[0])
+    var centerY = viewPixels[1] + (spikeCenter[1] - dataBox[1]) / (dataBox[3] - dataBox[1]) * (viewPixels[3] - viewPixels[1])
+
+    if(spikeEnable[0]) {
+     line.drawLine(
+       centerX, centerY,
+       viewPixels[0], centerY,
+       spikeWidth[0], spikeColor[0])
+    }
+    if(spikeEnable[1]) {
+     line.drawLine(
+       centerX, centerY,
+       centerX, viewPixels[1],
+       spikeWidth[1], spikeColor[1])
+    }
+    if(spikeEnable[2]) {
+      line.drawLine(
+        centerX, centerY,
+        viewPixels[2], centerY,
+        spikeWidth[2], spikeColor[2])
+    }
+    if(spikeEnable[3]) {
+      line.drawLine(
+        centerX, centerY,
+        centerX, viewPixels[3],
+        spikeWidth[3], spikeColor[3])
+    }
+  }
+
   //Draw border lines
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
   var borderLineColor  = this.borderLineColor
-  line.bind()
   if(borderLineEnable[0]) {
     line.drawLine(
       viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
@@ -258,8 +308,6 @@ return function() {
   if(this.titleEnable) {
     text.drawTitle()
   }
-
-  //TODO: Draw spikes
 
   //TODO: Draw other overlay elements (select boxes, etc.)
 
