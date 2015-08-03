@@ -97,9 +97,13 @@ proto.setDirty = function() {
 }
 
 proto.setSpike = function(x, y) {
-  this.spikeCenter[0] = +x
-  this.spikeCenter[1] = +y
-  this.dirty = true
+  x = isNaN(+x) ? Infinity : +x
+  y = isNaN(+y) ? Infinity : +y
+  this.dirty = this.dirty ||
+               this.spikeCenter[0] !== x ||
+               this.spikeCenter[1] !== y
+  this.spikeCenter[0] = x
+  this.spikeCenter[1] = y
 }
 
 function lerp(a, b, t) {
