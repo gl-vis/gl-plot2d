@@ -23,7 +23,6 @@ var gl = canvas.getContext('webgl')
 var POINT_COUNT = 1e7
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
-
 var dataBox = [-10,-10/aspect,10,10/aspect]
 
 function makeTicks(lo, hi) {
@@ -38,12 +37,12 @@ function makeTicks(lo, hi) {
 }
 
 var options = {
-  gl:      gl,
-  dataBox:         [-10, -10,  10,  10],
-  title:           '10 million points',
-  ticks:  [ makeTicks(-20,20), makeTicks(-20,20) ],
-  labels: ['x', 'y'],
-  pixelRatio:    +window.devicePixelRatio
+  gl:             gl,
+  dataBox:        dataBox,
+  title:          '10 million points',
+  ticks:          [ makeTicks(-20,20), makeTicks(-20,20) ],
+  labels:         ['x', 'y'],
+  pixelRatio:     +window.devicePixelRatio
 }
 
 var plot = createPlot(options)
@@ -62,17 +61,27 @@ plot.addObject(scatter)
 
 var lastX = 0, lastY = 0
 mouseChange(function(buttons, x, y) {
+  y = window.innerHeight - y
   x *= plot.pixelRatio
   y *= plot.pixelRatio
 
   if(buttons & 1) {
     var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
-    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
+    var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
 
     dataBox[0] += dx
     dataBox[1] += dy
     dataBox[2] += dx
     dataBox[3] += dy
+
+    plot.setDataBox(dataBox)
+  } else {
+    var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
+    if(result) {
+      plot.setSpike(result.dataCoord[0], result.dataCoord[1])
+    } else {
+      plot.setSpike()
+    }
   }
   lastX = x
   lastY = y
@@ -89,20 +98,19 @@ mouseWheel(function(dx, dy, dz) {
   dataBox[2] = (dataBox[2] - cx) * scale + cx
   dataBox[3] = (dataBox[3] - cy) * scale + cy
 
+  plot.setDataBox(dataBox)
+
   return true
 })
 
 function render() {
   requestAnimationFrame(render)
-  plot.screenBox[2] = gl.drawingBufferWidth
-  plot.screenBox[3] = gl.drawingBufferHeight
-  plot.dataBox = dataBox
   plot.draw()
 }
 
 render()
 
-},{"../plot":300,"canvas-fit":7,"gauss-random":9,"gl-scatter2d":161,"mouse-change":171,"mouse-wheel":175}],2:[function(require,module,exports){
+},{"../plot":319,"canvas-fit":7,"gauss-random":9,"gl-scatter2d":161,"mouse-change":190,"mouse-wheel":194}],2:[function(require,module,exports){
 'use strict'
 
 module.exports = createGrid
@@ -226,7 +234,7 @@ function createGrid(plot) {
   return grid
 }
 
-},{"./shaders":4,"gl-buffer":10,"gl-shader":162}],3:[function(require,module,exports){
+},{"./shaders":4,"gl-buffer":10,"gl-shader":181}],3:[function(require,module,exports){
 'use strict'
 
 module.exports = createLines
@@ -291,7 +299,7 @@ function createLines(plot) {
   return lines
 }
 
-},{"./shaders":4,"gl-buffer":10,"gl-shader":162}],4:[function(require,module,exports){
+},{"./shaders":4,"gl-buffer":10,"gl-shader":181}],4:[function(require,module,exports){
 'use strict'
 
 
@@ -433,9 +441,10 @@ proto.drawTitle = (function() {
     var titleAngle  = plot.titleAngle
     var titleColor  = plot.titleColor
     var titleCenter = plot.titleCenter
+    var pixelRatio  = plot.pixelRatio
 
     for(var i=0; i<2; ++i) {
-      SCREEN_OFFSET[i] = 2.0 * (titleCenter[i] - screenBox[i]) /
+      SCREEN_OFFSET[i] = 2.0 * (titleCenter[i]*pixelRatio - screenBox[i]) /
         (screenBox[2+i] - screenBox[i]) - 1
     }
 
@@ -589,7 +598,7 @@ function createTextElements(plot) {
   return text
 }
 
-},{"./shaders":4,"binary-search-bounds":6,"gl-buffer":10,"gl-shader":162,"text-cache":299}],6:[function(require,module,exports){
+},{"./shaders":4,"binary-search-bounds":6,"gl-buffer":10,"gl-shader":181,"text-cache":318}],6:[function(require,module,exports){
 "use strict"
 
 function compileSearch(funcName, predicate, reversed, extraArgs, earlyOut) {
@@ -2809,27 +2818,32 @@ exports.clearCache = function clearCache() {
   }
 }
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"bit-twiddle":19,"buffer":301,"dup":20}],22:[function(require,module,exports){
+},{"bit-twiddle":19,"buffer":320,"dup":20}],22:[function(require,module,exports){
 
 
 exports.pointVertex       = "#define GLSLIFY 1\n\nprecision mediump float;\n\nattribute vec2 position;\n\nuniform mat3 matrix;\nuniform float pointSize;\n\nvoid main() {\n  vec3 hgPosition = matrix * vec3(position, 1);\n  gl_Position  = vec4(hgPosition.xy, 0, hgPosition.z);\n  gl_PointSize = pointSize;\n}\n"
 exports.pointFragment     = "#define GLSLIFY 1\n\nprecision mediump float;\n\nuniform vec4 color, borderColor;\nuniform float centerFraction;\n\nfloat smoothStep(float x, float y) {\n  return 1.0 / (1.0 + exp(50.0*(x - y)));\n}\n\nvoid main() {\n  float radius = length(2.0*gl_PointCoord.xy-1.0);\n  if(radius > 1.0) {\n    discard;\n  }\n  gl_FragColor = mix(borderColor, color, smoothStep(radius, centerFraction));\n}\n"
+exports.pickVertex        = "#define GLSLIFY 1\n\nprecision mediump float;\n\nattribute vec2 position;\nattribute vec4 pickId;\n\nuniform mat3 matrix;\nuniform float pointSize;\nuniform vec4 pickOffset;\n\nvarying vec4 fragId;\n\nvoid main() {\n  vec3 hgPosition = matrix * vec3(position, 1);\n  gl_Position  = vec4(hgPosition.xy, 0, hgPosition.z);\n  gl_PointSize = pointSize;\n\n  vec4 id = pickId + pickOffset;\n  id.z += floor(id.w / 256.0);\n  id.y += floor(id.z / 256.0);\n  id.x += floor(id.y / 256.0);\n  fragId = id;\n}\n"
+exports.pickFragment      = "#define GLSLIFY 1\n\nprecision mediump float;\n\nvarying vec4 fragId;\n\nvoid main() {\n  float radius = length(2.0*gl_PointCoord.xy-1.0);\n  if(radius > 1.0) {\n    discard;\n  }\n  gl_FragColor = fragId / 255.0;\n}\n"
 
 },{}],23:[function(require,module,exports){
 'use strict'
 
 module.exports = sortPoints
 
+var pool = require('typedarray-pool')
+
 function PointInterval(scale, count) {
   this.scale = scale
   this.count = count
 }
 
-function partitionPoints(points, start, end, lox, loy, hix, hiy) {
+function partitionPoints(points, ids, start, end, lox, loy, hix, hiy) {
   var mid = start
   for(var i=start; i<end; ++i) {
-    var x = points[2*i]
-    var y = points[2*i+1]
+    var x  = points[2*i]
+    var y  = points[2*i+1]
+    var s  = ids[i]
     if(lox <= x && x <= hix &&
        loy <= y && y <= hiy) {
       if(i === mid) {
@@ -2837,8 +2851,10 @@ function partitionPoints(points, start, end, lox, loy, hix, hiy) {
       } else {
         points[2*i]     = points[2*mid]
         points[2*i+1]   = points[2*mid+1]
+        ids[i]          = ids[mid]
         points[2*mid]   = x
         points[2*mid+1] = y
+        ids[mid]        = s
         mid += 1
       }
     }
@@ -2854,12 +2870,12 @@ function VisitRecord(x, y, diam, start, end) {
   this.end = end
 }
 
-function sortPoints(points, subdiv, output, bounds) {
+function sortPoints(points, subdiv, output, outputId, bounds) {
   var n    = points.length >>> 1
   if(n < 1) {
     return []
   }
-
+  var ids = pool.mallocInt32(n)
   var lox =  Infinity, loy =  Infinity
   var hix = -Infinity, hiy = -Infinity
   for(var i=0; i<n; ++i) {
@@ -2869,6 +2885,7 @@ function sortPoints(points, subdiv, output, bounds) {
     hix = Math.max(hix, x)
     loy = Math.min(loy, y)
     hiy = Math.max(hiy, y)
+    ids[i] = i
   }
   var scaleX = 1.0 / (hix - lox)
   var scaleY = 1.0 / (hiy - loy)
@@ -2895,6 +2912,7 @@ function sortPoints(points, subdiv, output, bounds) {
     var end = head.end
     output[2*ptr]   = (points[2*start]   - lox) * scaleX
     output[2*ptr+1] = (points[2*start+1] - loy) * scaleY
+    outputId[ptr]   = ids[start]
     ptr   -= 1
     start += 1
     if(d < lastScale) {
@@ -2908,6 +2926,7 @@ function sortPoints(points, subdiv, output, bounds) {
         var y0 = y + s * j
         var mid = partitionPoints(
           points,
+          ids,
           start,
           end,
           x0, y0,
@@ -2920,12 +2939,14 @@ function sortPoints(points, subdiv, output, bounds) {
     }
   }
 
+
+  pool.free(ids)
   scales.push(new PointInterval(lastScale, 0))
 
   return scales
 }
 
-},{}],24:[function(require,module,exports){
+},{"typedarray-pool":160}],24:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
 },{"dup":6}],25:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
@@ -3485,7 +3506,7 @@ arguments[4][19][0].apply(exports,arguments)
 arguments[4][20][0].apply(exports,arguments)
 },{"dup":20}],36:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":34,"buffer":301,"dup":21}],37:[function(require,module,exports){
+},{"bit-twiddle":34,"buffer":320,"dup":21}],37:[function(require,module,exports){
 'use strict'
 
 var createUniformWrapper   = require('./lib/create-uniforms')
@@ -9275,7 +9296,7 @@ module.exports.denormalized = function(n) {
   return !(hi & 0x7ff00000)
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":301}],83:[function(require,module,exports){
+},{"buffer":320}],83:[function(require,module,exports){
 'use strict'
 
 var bnsign = require('./lib/bn-sign')
@@ -11058,7 +11079,7 @@ function nextafter(x, y) {
 }
 },{"double-bits":96}],96:[function(require,module,exports){
 arguments[4][82][0].apply(exports,arguments)
-},{"buffer":301,"dup":82}],97:[function(require,module,exports){
+},{"buffer":320,"dup":82}],97:[function(require,module,exports){
 'use strict'
 
 var bnadd = require('big-rat/add')
@@ -15393,13 +15414,13 @@ function textGet(font, text) {
 }
 
 }).call(this,require('_process'))
-},{"_process":305,"vectorize-text":46}],158:[function(require,module,exports){
+},{"_process":324,"vectorize-text":46}],158:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
 },{"dup":19}],159:[function(require,module,exports){
 arguments[4][20][0].apply(exports,arguments)
 },{"dup":20}],160:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":158,"buffer":301,"dup":21}],161:[function(require,module,exports){
+},{"bit-twiddle":158,"buffer":320,"dup":21}],161:[function(require,module,exports){
 'use strict'
 
 var createShader = require('gl-shader')
@@ -15416,11 +15437,12 @@ var SUBDIV_COUNT = 2
 
 module.exports = createScatter2D
 
-function Scatter2D(plot, offsetBuffer, shader) {
+function Scatter2D(plot, offsetBuffer, pickBuffer, shader, pickShader) {
   this.plot           = plot
   this.offsetBuffer   = offsetBuffer
-  this.glyphSize      = 0
+  this.pickBuffer     = pickBuffer
   this.shader         = shader
+  this.pickShader     = pickShader
   this.scales         = []
   this.size           = 12.0
   this.borderSize     = 1.0
@@ -15428,6 +15450,8 @@ function Scatter2D(plot, offsetBuffer, shader) {
   this.color          = [1,0,0,1]
   this.borderColor    = [0,0,0,1]
   this.bounds         = [Infinity,Infinity,-Infinity,-Infinity]
+  this.pickOffset     = 0
+  this.points         = null
 }
 
 var proto = Scatter2D.prototype
@@ -15450,16 +15474,91 @@ proto.update = function(options) {
   //Update point data
   var data          = options.positions
   var packed        = pool.mallocFloat32(data.length)
-  this.scales       = preprocessPoints(data, SUBDIV_COUNT, packed, this.bounds)
+  var packedId      = pool.mallocInt32(data.length>>>1)
+  var points        = pool.mallocFloat32(data.length)
+  points.set(data)
+  this.points       = data
+  this.scales       = preprocessPoints(points, SUBDIV_COUNT, packed, packedId, this.bounds)
   this.offsetBuffer.update(packed)
+  this.pickBuffer.update(packedId)
+  pool.free(points)
+  pool.free(packedId)
   pool.free(packed)
-
+  
   this.pointCount = data.length >>> 1
+  this.pickOffset = 0
 }
 
 function compareScale(a, b) {
   return b - a.scale
 }
+
+proto.drawPick = (function() {
+  var MATRIX = [1,0,0,
+                0,1,0,
+                0,0,1]
+  var PICK_VEC4 = [0,0,0,0]
+return function(pickOffset) {
+  var plot          = this.plot
+  var shader        = this.pickShader
+  var scales        = this.scales
+  var offsetBuffer  = this.offsetBuffer
+  var pickBuffer    = this.pickBuffer
+  var bounds        = this.bounds
+  var size          = this.size
+  var borderSize    = this.borderSize
+  var gl            = plot.gl
+  var pixelRatio    = plot.pickPixelRatio
+  var viewBox       = plot.viewBox
+  var dataBox       = plot.dataBox
+
+  var boundX  = bounds[2] - bounds[0]
+  var boundY  = bounds[3] - bounds[1]
+  var dataX   = dataBox[2] - dataBox[0]
+  var dataY   = dataBox[3] - dataBox[1]
+  var screenX = (viewBox[2] - viewBox[0]) * pixelRatio / plot.pixelRatio
+  var screenY = (viewBox[3] - viewBox[1]) * pixelRatio / plot.pixelRatio
+
+  var pixelSize   = Math.max(dataX / screenX, dataY / screenY)
+  var targetScale = pixelSize
+  var scaleNum    = Math.min(Math.max(bsearch.le(scales, targetScale, compareScale), 0), scales.length-1)
+
+  MATRIX[0] = 2.0 * boundX / dataX
+  MATRIX[4] = 2.0 * boundY / dataY
+  MATRIX[6] = 2.0 * (bounds[0] - dataBox[0]) / dataX - 1.0
+  MATRIX[7] = 2.0 * (bounds[1] - dataBox[1]) / dataY - 1.0
+
+  this.pickOffset = pickOffset
+  PICK_VEC4[0] = ( pickOffset      & 0xff)
+  PICK_VEC4[1] = ((pickOffset>>8)  & 0xff)
+  PICK_VEC4[1] = ((pickOffset>>16) & 0xff)
+  PICK_VEC4[1] = ((pickOffset>>24) & 0xff)
+
+  shader.bind()
+  shader.uniforms.matrix      = MATRIX
+  shader.uniforms.color       = this.color
+  shader.uniforms.borderColor = this.borderColor
+  shader.uniforms.pointSize   = pixelRatio * (size + borderSize)
+  shader.uniforms.pickOffset  = PICK_VEC4
+
+  if(this.borderSize === 0) {
+    shader.uniforms.centerFraction = 2.0;
+  } else {
+    shader.uniforms.centerFraction = size / (size + borderSize + 1.25)
+  }
+
+  offsetBuffer.bind()
+  shader.attributes.position.pointer()
+  pickBuffer.bind()
+  shader.attributes.pickId.pointer(gl.UNSIGNED_BYTE)
+
+  var offset     = scales[scaleNum].count
+  var pointCount = this.pointCount
+  gl.drawArrays(gl.POINTS, offset, pointCount - offset)
+
+  return pickOffset + pointCount
+}
+})()
 
 proto.draw = (function() {
   var MATRIX = [1, 0, 0,
@@ -15509,31 +15608,1261 @@ proto.draw = (function() {
 
     offsetBuffer.bind()
     shader.attributes.position.pointer()
-    var offset = scales[scaleNum].count
+    var offset     = scales[scaleNum].count
     var pointCount = this.pointCount
     gl.drawArrays(gl.POINTS, offset, pointCount - offset)
   }
 })()
 
+proto.pick = function(x, y, value) {
+  var pickOffset = this.pickOffset
+  var pointCount = this.pointCount
+  if(value < pickOffset || value >= pickOffset + pointCount) {
+    return null
+  }
+  var pointId = value - pickOffset
+  var points = this.points
+  return {
+    object:  this,
+    pointId: pointId,
+    dataCoord: [ points[2*pointId], points[2*pointId+1] ]
+  }
+}
+
 function createScatter2D(plot, options) {
   var gl     = plot.gl
   var buffer = createBuffer(gl)
+  var pickBuffer = createBuffer(gl)
   var shader = createShader(gl, SHADERS.pointVertex, SHADERS.pointFragment)
+  var pickShader = createShader(gl, SHADERS.pickVertex, SHADERS.pickFragment)
 
-  var result = new Scatter2D(plot, buffer, shader)
+  var result = new Scatter2D(plot, buffer, pickBuffer, shader, pickShader)
   result.update(options)
   return result
 }
 
 },{"./lib/shader":22,"./lib/sort-points":23,"binary-search-bounds":24,"gl-buffer":25,"gl-shader":37,"text-cache":157,"typedarray-pool":160}],162:[function(require,module,exports){
+arguments[4][19][0].apply(exports,arguments)
+},{"dup":19}],163:[function(require,module,exports){
+module.exports = require("cwise-compiler")
+},{"cwise-compiler":164}],164:[function(require,module,exports){
+arguments[4][12][0].apply(exports,arguments)
+},{"./lib/thunk.js":166,"dup":12}],165:[function(require,module,exports){
+arguments[4][13][0].apply(exports,arguments)
+},{"dup":13,"uniq":167}],166:[function(require,module,exports){
+arguments[4][14][0].apply(exports,arguments)
+},{"./compile.js":165,"dup":14}],167:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],168:[function(require,module,exports){
+'use strict'
+
+var createTexture = require('gl-texture2d')
+
+module.exports = createFBO
+
+var colorAttachmentArrays = null
+var FRAMEBUFFER_UNSUPPORTED
+var FRAMEBUFFER_INCOMPLETE_ATTACHMENT
+var FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+var FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
+
+function saveFBOState(gl) {
+  var fbo = gl.getParameter(gl.FRAMEBUFFER_BINDING)
+  var rbo = gl.getParameter(gl.RENDERBUFFER_BINDING)
+  var tex = gl.getParameter(gl.TEXTURE_BINDING_2D)
+  return [fbo, rbo, tex]
+}
+
+function restoreFBOState(gl, data) {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, data[0])
+  gl.bindRenderbuffer(gl.RENDERBUFFER, data[1])
+  gl.bindTexture(gl.TEXTURE_2D, data[2])
+}
+
+function lazyInitColorAttachments(gl, ext) {
+  var maxColorAttachments = gl.getParameter(ext.MAX_COLOR_ATTACHMENTS_WEBGL)
+  colorAttachmentArrays = new Array(maxColorAttachments + 1)
+  for(var i=0; i<=maxColorAttachments; ++i) {
+    var x = new Array(maxColorAttachments)
+    for(var j=0; j<i; ++j) {
+      x[j] = gl.COLOR_ATTACHMENT0 + j
+    }
+    for(var j=i; j<maxColorAttachments; ++j) {
+      x[j] = gl.NONE
+    }
+    colorAttachmentArrays[i] = x
+  }
+}
+
+//Throw an appropriate error
+function throwFBOError(status) {
+  switch(status){
+    case FRAMEBUFFER_UNSUPPORTED:
+      throw new Error('gl-fbo: Framebuffer unsupported')
+    case FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+      throw new Error('gl-fbo: Framebuffer incomplete attachment')
+    case FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+      throw new Error('gl-fbo: Framebuffer incomplete dimensions')
+    case FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+      throw new Error('gl-fbo: Framebuffer incomplete missing attachment')
+    default:
+      throw new Error('gl-fbo: Framebuffer failed for unspecified reason')
+  }
+}
+
+//Initialize a texture object
+function initTexture(gl, width, height, type, format, attachment) {
+  if(!type) {
+    return null
+  }
+  var result = createTexture(gl, width, height, format, type)
+  result.magFilter = gl.NEAREST
+  result.minFilter = gl.NEAREST
+  result.mipSamples = 1
+  result.bind()
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, result.handle, 0)
+  return result
+}
+
+//Initialize a render buffer object
+function initRenderBuffer(gl, width, height, component, attachment) {
+  var result = gl.createRenderbuffer()
+  gl.bindRenderbuffer(gl.RENDERBUFFER, result)
+  gl.renderbufferStorage(gl.RENDERBUFFER, component, width, height)
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, attachment, gl.RENDERBUFFER, result)
+  return result
+}
+
+//Rebuild the frame buffer
+function rebuildFBO(fbo) {
+
+  //Save FBO state
+  var state = saveFBOState(fbo.gl)
+
+  var gl = fbo.gl
+  var handle = fbo.handle = gl.createFramebuffer()
+  var width = fbo._shape[0]
+  var height = fbo._shape[1]
+  var numColors = fbo.color.length
+  var ext = fbo._ext
+  var useStencil = fbo._useStencil
+  var useDepth = fbo._useDepth
+  var colorType = fbo._colorType
+
+  //Bind the fbo
+  gl.bindFramebuffer(gl.FRAMEBUFFER, handle)
+
+  //Allocate color buffers
+  for(var i=0; i<numColors; ++i) {
+    fbo.color[i] = initTexture(gl, width, height, colorType, gl.RGBA, gl.COLOR_ATTACHMENT0 + i)
+  }
+  if(numColors === 0) {
+    fbo._color_rb = initRenderBuffer(gl, width, height, gl.RGBA4, gl.COLOR_ATTACHMENT0)
+    if(ext) {
+      ext.drawBuffersWEBGL(colorAttachmentArrays[0])
+    }
+  } else if(numColors > 1) {
+    ext.drawBuffersWEBGL(colorAttachmentArrays[numColors])
+  }
+
+  //Allocate depth/stencil buffers
+  var WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture')
+  if(WEBGL_depth_texture) {
+    if(useStencil) {
+      fbo.depth = initTexture(gl, width, height,
+                          WEBGL_depth_texture.UNSIGNED_INT_24_8_WEBGL,
+                          gl.DEPTH_STENCIL,
+                          gl.DEPTH_STENCIL_ATTACHMENT)
+    } else if(useDepth) {
+      fbo.depth = initTexture(gl, width, height,
+                          gl.UNSIGNED_SHORT,
+                          gl.DEPTH_COMPONENT,
+                          gl.DEPTH_ATTACHMENT)
+    }
+  } else {
+    if(useDepth && useStencil) {
+      fbo._depth_rb = initRenderBuffer(gl, width, height, gl.DEPTH_STENCIL, gl.DEPTH_STENCIL_ATTACHMENT)
+    } else if(useDepth) {
+      fbo._depth_rb = initRenderBuffer(gl, width, height, gl.DEPTH_COMPONENT16, gl.DEPTH_ATTACHMENT)
+    } else if(useStencil) {
+      fbo._depth_rb = initRenderBuffer(gl, width, height, gl.STENCIL_INDEX, gl.STENCIL_ATTACHMENT)
+    }
+  }
+
+  //Check frame buffer state
+  var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  if(status !== gl.FRAMEBUFFER_COMPLETE) {
+
+    //Release all partially allocated resources
+    fbo._destroyed = true
+
+    //Release all resources
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    gl.deleteFramebuffer(fbo.handle)
+    fbo.handle = null
+    if(fbo.depth) {
+      fbo.depth.dispose()
+      fbo.depth = null
+    }
+    if(fbo._depth_rb) {
+      gl.deleteRenderbuffer(fbo._depth_rb)
+      fbo._depth_rb = null
+    }
+    for(var i=0; i<fbo.color.length; ++i) {
+      fbo.color[i].dispose()
+      fbo.color[i] = null
+    }
+    if(fbo._color_rb) {
+      gl.deleteRenderbuffer(fbo._color_rb)
+      fbo._color_rb = null
+    }
+
+    restoreFBOState(gl, state)
+
+    //Throw the frame buffer error
+    throwFBOError(status)
+  }
+
+  //Everything ok, let's get on with life
+  restoreFBOState(gl, state)
+}
+
+function Framebuffer(gl, width, height, colorType, numColors, useDepth, useStencil, ext) {
+
+  //Handle and set properties
+  this.gl = gl
+  this._shape = [width|0, height|0]
+  this._destroyed = false
+  this._ext = ext
+
+  //Allocate buffers
+  this.color = new Array(numColors)
+  for(var i=0; i<numColors; ++i) {
+    this.color[i] = null
+  }
+  this._color_rb = null
+  this.depth = null
+  this._depth_rb = null
+
+  //Save depth and stencil flags
+  this._colorType = colorType
+  this._useDepth = useDepth
+  this._useStencil = useStencil
+
+  //Shape vector for resizing
+  var parent = this
+  var shapeVector = [width|0, height|0]
+  Object.defineProperties(shapeVector, {
+    0: {
+      get: function() {
+        return parent._shape[0]
+      },
+      set: function(w) {
+        return parent.width = w
+      }
+    },
+    1: {
+      get: function() {
+        return parent._shape[1]
+      },
+      set: function(h) {
+        return parent.height = h
+      }
+    }
+  })
+  this._shapeVector = shapeVector
+
+  //Initialize all attachments
+  rebuildFBO(this)
+}
+
+var proto = Framebuffer.prototype
+
+function reshapeFBO(fbo, w, h) {
+  //If fbo is invalid, just skip this
+  if(fbo._destroyed) {
+    throw new Error('gl-fbo: Can\'t resize destroyed FBO')
+  }
+
+  //Don't resize if no change in shape
+  if( (fbo._shape[0] === w) &&
+      (fbo._shape[1] === h) ) {
+    return
+  }
+
+  var gl = fbo.gl
+
+  //Check parameter ranges
+  var maxFBOSize = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)
+  if( w < 0 || w > maxFBOSize ||
+      h < 0 || h > maxFBOSize) {
+    throw new Error('gl-fbo: Can\'t resize FBO, invalid dimensions')
+  }
+
+  //Update shape
+  fbo._shape[0] = w
+  fbo._shape[1] = h
+
+  //Save framebuffer state
+  var state = saveFBOState(gl)
+
+  //Resize framebuffer attachments
+  for(var i=0; i<fbo.color.length; ++i) {
+    fbo.color[i].shape = fbo._shape
+  }
+  if(fbo._color_rb) {
+    gl.bindRenderbuffer(gl.RENDERBUFFER, fbo._color_rb)
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, fbo._shape[0], fbo._shape[1])
+  }
+  if(fbo.depth) {
+    fbo.depth.shape = fbo._shape
+  }
+  if(fbo._depth_rb) {
+    gl.bindRenderbuffer(gl.RENDERBUFFER, fbo._depth_rb)
+    if(fbo._useDepth && fbo._useStencil) {
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, fbo._shape[0], fbo._shape[1])
+    } else if(fbo._useDepth) {
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, fbo._shape[0], fbo._shape[1])
+    } else if(fbo._useStencil) {
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.STENCIL_INDEX, fbo._shape[0], fbo._shape[1])
+    }
+  }
+
+  //Check FBO status after resize, if something broke then die in a fire
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.handle)
+  var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  if(status !== gl.FRAMEBUFFER_COMPLETE) {
+    fbo.dispose()
+    restoreFBOState(gl, state)
+    throwFBOError(status)
+  }
+
+  //Restore framebuffer state
+  restoreFBOState(gl, state)
+}
+
+Object.defineProperties(proto, {
+  'shape': {
+    get: function() {
+      if(this._destroyed) {
+        return [0,0]
+      }
+      return this._shapeVector
+    },
+    set: function(x) {
+      if(!Array.isArray(x)) {
+        x = [x|0, x|0]
+      }
+      if(x.length !== 2) {
+        throw new Error('gl-fbo: Shape vector must be length 2')
+      }
+
+      var w = x[0]|0
+      var h = x[1]|0
+      reshapeFBO(this, w, h)
+
+      return [w, h]
+    },
+    enumerable: false
+  },
+  'width': {
+    get: function() {
+      if(this._destroyed) {
+        return 0
+      }
+      return this._shape[0]
+    },
+    set: function(w) {
+      w = w|0
+      reshapeFBO(this, w, this._shape[1])
+      return w
+    },
+    enumerable: false
+  },
+  'height': {
+    get: function() {
+      if(this._destroyed) {
+        return 0
+      }
+      return this._shape[1]
+    },
+    set: function(h) {
+      h = h|0
+      reshapeFBO(this, this._shape[0], h)
+      return h
+    },
+    enumerable: false
+  }
+})
+
+proto.bind = function() {
+  if(this._destroyed) {
+    return
+  }
+  var gl = this.gl
+  gl.bindFramebuffer(gl.FRAMEBUFFER, this.handle)
+  gl.viewport(0, 0, this._shape[0], this._shape[1])
+}
+
+proto.dispose = function() {
+  if(this._destroyed) {
+    return
+  }
+  this._destroyed = true
+  var gl = this.gl
+  gl.deleteFramebuffer(this.handle)
+  this.handle = null
+  if(this.depth) {
+    this.depth.dispose()
+    this.depth = null
+  }
+  if(this._depth_rb) {
+    gl.deleteRenderbuffer(this._depth_rb)
+    this._depth_rb = null
+  }
+  for(var i=0; i<this.color.length; ++i) {
+    this.color[i].dispose()
+    this.color[i] = null
+  }
+  if(this._color_rb) {
+    gl.deleteRenderbuffer(this._color_rb)
+    this._color_rb = null
+  }
+}
+
+function createFBO(gl, width, height, options) {
+
+  //Update frame buffer error code values
+  if(!FRAMEBUFFER_UNSUPPORTED) {
+    FRAMEBUFFER_UNSUPPORTED = gl.FRAMEBUFFER_UNSUPPORTED
+    FRAMEBUFFER_INCOMPLETE_ATTACHMENT = gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT
+    FRAMEBUFFER_INCOMPLETE_DIMENSIONS = gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+    FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT = gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
+  }
+
+  //Lazily initialize color attachment arrays
+  var WEBGL_draw_buffers = gl.getExtension('WEBGL_draw_buffers')
+  if(!colorAttachmentArrays && WEBGL_draw_buffers) {
+    lazyInitColorAttachments(gl, WEBGL_draw_buffers)
+  }
+
+  //Special case: Can accept an array as argument
+  if(Array.isArray(width)) {
+    options = height
+    height = width[1]|0
+    width = width[0]|0
+  }
+
+  if(typeof width !== 'number') {
+    throw new Error('gl-fbo: Missing shape parameter')
+  }
+
+  //Validate width/height properties
+  var maxFBOSize = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)
+  if(width < 0 || width > maxFBOSize || height < 0 || height > maxFBOSize) {
+    throw new Error('gl-fbo: Parameters are too large for FBO')
+  }
+
+  //Handle each option type
+  options = options || {}
+
+  //Figure out number of color buffers to use
+  var numColors = 1
+  if('color' in options) {
+    numColors = Math.max(options.color|0, 0)
+    if(numColors < 0) {
+      throw new Error('gl-fbo: Must specify a nonnegative number of colors')
+    }
+    if(numColors > 1) {
+      //Check if multiple render targets supported
+      if(!WEBGL_draw_buffers) {
+        throw new Error('gl-fbo: Multiple draw buffer extension not supported')
+      } else if(numColors > gl.getParameter(WEBGL_draw_buffers.MAX_COLOR_ATTACHMENTS_WEBGL)) {
+        throw new Error('gl-fbo: Context does not support ' + numColors + ' draw buffers')
+      }
+    }
+  }
+
+  //Determine whether to use floating point textures
+  var colorType = gl.UNSIGNED_BYTE
+  var OES_texture_float = gl.getExtension('OES_texture_float')
+  if(options.float && numColors > 0) {
+    if(!OES_texture_float) {
+      throw new Error('gl-fbo: Context does not support floating point textures')
+    }
+    colorType = gl.FLOAT
+  } else if(options.preferFloat && numColors > 0) {
+    if(OES_texture_float) {
+      colorType = gl.FLOAT
+    }
+  }
+
+  //Check if we should use depth buffer
+  var useDepth = true
+  if('depth' in options) {
+    useDepth = !!options.depth
+  }
+
+  //Check if we should use a stencil buffer
+  var useStencil = false
+  if('stencil' in options) {
+    useStencil = !!options.stencil
+  }
+
+  return new Framebuffer(
+    gl,
+    width,
+    height,
+    colorType,
+    numColors,
+    useDepth,
+    useStencil,
+    WEBGL_draw_buffers)
+}
+
+},{"gl-texture2d":174}],169:[function(require,module,exports){
+arguments[4][11][0].apply(exports,arguments)
+},{"cwise-compiler":170,"dup":11}],170:[function(require,module,exports){
+arguments[4][12][0].apply(exports,arguments)
+},{"./lib/thunk.js":172,"dup":12}],171:[function(require,module,exports){
+arguments[4][13][0].apply(exports,arguments)
+},{"dup":13,"uniq":173}],172:[function(require,module,exports){
+arguments[4][14][0].apply(exports,arguments)
+},{"./compile.js":171,"dup":14}],173:[function(require,module,exports){
+arguments[4][15][0].apply(exports,arguments)
+},{"dup":15}],174:[function(require,module,exports){
+'use strict'
+
+var ndarray = require('ndarray')
+var ops     = require('ndarray-ops')
+var pool    = require('typedarray-pool')
+
+module.exports = createTexture2D
+
+var linearTypes = null
+var filterTypes = null
+var wrapTypes   = null
+
+function lazyInitLinearTypes(gl) {
+  linearTypes = [
+    gl.LINEAR,
+    gl.NEAREST_MIPMAP_LINEAR,
+    gl.LINEAR_MIPMAP_NEAREST,
+    gl.LINEAR_MIPMAP_NEAREST
+  ]
+  filterTypes = [
+    gl.NEAREST,
+    gl.LINEAR,
+    gl.NEAREST_MIPMAP_NEAREST,
+    gl.NEAREST_MIPMAP_LINEAR,
+    gl.LINEAR_MIPMAP_NEAREST,
+    gl.LINEAR_MIPMAP_LINEAR
+  ]
+  wrapTypes = [
+    gl.REPEAT,
+    gl.CLAMP_TO_EDGE,
+    gl.MIRRORED_REPEAT
+  ]
+}
+
+var convertFloatToUint8 = function(out, inp) {
+  ops.muls(out, inp, 255.0)
+}
+
+function reshapeTexture(tex, w, h) {
+  var gl = tex.gl
+  var maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+  if(w < 0 || w > maxSize || h < 0 || h > maxSize) {
+    throw new Error('gl-texture2d: Invalid texture size')
+  }
+  tex._shape = [w, h]
+  tex.bind()
+  gl.texImage2D(gl.TEXTURE_2D, 0, tex.format, w, h, 0, tex.format, tex.type, null)
+  tex._mipLevels = [0]
+  return tex
+}
+
+function Texture2D(gl, handle, width, height, format, type) {
+  this.gl = gl
+  this.handle = handle
+  this.format = format
+  this.type = type
+  this._shape = [width, height]
+  this._mipLevels = [0]
+  this._magFilter = gl.NEAREST
+  this._minFilter = gl.NEAREST
+  this._wrapS = gl.CLAMP_TO_EDGE
+  this._wrapT = gl.CLAMP_TO_EDGE
+  this._anisoSamples = 1
+
+  var parent = this
+  var wrapVector = [this._wrapS, this._wrapT]
+  Object.defineProperties(wrapVector, [
+    {
+      get: function() {
+        return parent._wrapS
+      },
+      set: function(v) {
+        return parent.wrapS = v
+      }
+    },
+    {
+      get: function() {
+        return parent._wrapT
+      },
+      set: function(v) {
+        return parent.wrapT = v
+      }
+    }
+  ])
+  this._wrapVector = wrapVector
+
+  var shapeVector = [this._shape[0], this._shape[1]]
+  Object.defineProperties(shapeVector, [
+    {
+      get: function() {
+        return parent._shape[0]
+      },
+      set: function(v) {
+        return parent.width = v
+      }
+    },
+    {
+      get: function() {
+        return parent._shape[1]
+      },
+      set: function(v) {
+        return parent.height = v
+      }
+    }
+  ])
+  this._shapeVector = shapeVector
+}
+
+var proto = Texture2D.prototype
+
+Object.defineProperties(proto, {
+  minFilter: {
+    get: function() {
+      return this._minFilter
+    },
+    set: function(v) {
+      this.bind()
+      var gl = this.gl
+      if(this.type === gl.FLOAT && linearTypes.indexOf(v) >= 0) {
+        if(!gl.getExtension('OES_texture_float_linear')) {
+          v = gl.NEAREST
+        }
+      }
+      if(filterTypes.indexOf(v) < 0) {
+        throw new Error('gl-texture2d: Unknown filter mode ' + v)
+      }
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, v)
+      return this._minFilter = v
+    }
+  },
+  magFilter: {
+    get: function() {
+      return this._magFilter
+    },
+    set: function(v) {
+      this.bind()
+      var gl = this.gl
+      if(this.type === gl.FLOAT && linearTypes.indexOf(v) >= 0) {
+        if(!gl.getExtension('OES_texture_float_linear')) {
+          v = gl.NEAREST
+        }
+      }
+      if(filterTypes.indexOf(v) < 0) {
+        throw new Error('gl-texture2d: Unknown filter mode ' + v)
+      }
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, v)
+      return this._magFilter = v
+    }
+  },
+  mipSamples: {
+    get: function() {
+      return this._anisoSamples
+    },
+    set: function(i) {
+      var psamples = this._anisoSamples
+      this._anisoSamples = Math.max(i, 1)|0
+      if(psamples !== this._anisoSamples) {
+        var ext = gl.getExtension('EXT_texture_filter_anisotropic')
+        if(ext) {
+          this.gl.texParameterf(this.gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, this._anisoSamples)
+        }
+      }
+      return this._anisoSamples
+    }
+  },
+  wrapS: {
+    get: function() {
+      return this._wrapS
+    },
+    set: function(v) {
+      this.bind()
+      if(wrapTypes.indexOf(v) < 0) {
+        throw new Error('gl-texture2d: Unknown wrap mode ' + v)
+      }
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, v)
+      return this._wrapS = v
+    }
+  },
+  wrapT: {
+    get: function() {
+      return this._wrapT
+    },
+    set: function(v) {
+      this.bind()
+      if(wrapTypes.indexOf(v) < 0) {
+        throw new Error('gl-texture2d: Unknown wrap mode ' + v)
+      }
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, v)
+      return this._wrapT = v
+    }
+  },
+  wrap: {
+    get: function() {
+      return this._wrapVector
+    },
+    set: function(v) {
+      if(!Array.isArray(v)) {
+        v = [v,v]
+      }
+      if(v.length !== 2) {
+        throw new Error('gl-texture2d: Must specify wrap mode for rows and columns')
+      }
+      for(var i=0; i<2; ++i) {
+        if(wrapTypes.indexOf(v[i]) < 0) {
+          throw new Error('gl-texture2d: Unknown wrap mode ' + v)
+        }
+      }
+      this._wrapS = v[0]
+      this._wrapT = v[1]
+
+      var gl = this.gl
+      this.bind()
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, this._wrapS)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, this._wrapT)
+
+      return v
+    }
+  },
+  shape: {
+    get: function() {
+      return this._shapeVector
+    },
+    set: function(x) {
+      if(!Array.isArray(x)) {
+        x = [x|0,x|0]
+      } else {
+        if(x.length !== 2) {
+          throw new Error('gl-texture2d: Invalid texture shape')
+        }
+      }
+      reshapeTexture(this, x[0]|0, x[1]|0)
+      return [x[0]|0, x[1]|0]
+    }
+  },
+  width: {
+    get: function() {
+      return this._shape[0]
+    },
+    set: function(w) {
+      w = w|0
+      reshapeTexture(this, w, this._shape[1])
+      return w
+    }
+  },
+  height: {
+    get: function() {
+      return this._shape[1]
+    },
+    set: function(h) {
+      h = h|0
+      reshapeTexture(this, this._shape[0], h)
+      return h
+    }
+  }
+})
+
+proto.bind = function(unit) {
+  var gl = this.gl
+  if(unit !== undefined) {
+    gl.activeTexture(gl.TEXTURE0 + (unit|0))
+  }
+  gl.bindTexture(gl.TEXTURE_2D, this.handle)
+  if(unit !== undefined) {
+    return (unit|0)
+  }
+  return gl.getParameter(gl.ACTIVE_TEXTURE) - gl.TEXTURE0
+}
+
+proto.dispose = function() {
+  this.gl.deleteTexture(this.handle)
+}
+
+proto.generateMipmap = function() {
+  this.bind()
+  this.gl.generateMipmap(this.gl.TEXTURE_2D)
+
+  //Update mip levels
+  var l = Math.min(this._shape[0], this._shape[1])
+  for(var i=0; l>0; ++i, l>>>=1) {
+    if(this._mipLevels.indexOf(i) < 0) {
+      this._mipLevels.push(i)
+    }
+  }
+}
+
+proto.setPixels = function(data, x_off, y_off, mip_level) {
+  var gl = this.gl
+  this.bind()
+  if(Array.isArray(x_off)) {
+    mip_level = y_off
+    y_off = x_off[1]|0
+    x_off = x_off[0]|0
+  } else {
+    x_off = x_off || 0
+    y_off = y_off || 0
+  }
+  mip_level = mip_level || 0
+  if(data instanceof HTMLCanvasElement ||
+     data instanceof ImageData ||
+     data instanceof HTMLImageElement ||
+     data instanceof HTMLVideoElement) {
+    var needsMip = this._mipLevels.indexOf(mip_level) < 0
+    if(needsMip) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.format, this.type, data)
+      this._mipLevels.push(mip_level)
+    } else {
+      gl.texSubImage2D(gl.TEXTURE_2D, mip_level, x_off, y_off, this.format, this.type, data)
+    }
+  } else if(data.shape && data.stride && data.data) {
+    if(data.shape.length < 2 ||
+       x_off + data.shape[1] > this._shape[1]>>>mip_level ||
+       y_off + data.shape[0] > this._shape[0]>>>mip_level ||
+       x_off < 0 ||
+       y_off < 0) {
+      throw new Error('gl-texture2d: Texture dimensions are out of bounds')
+    }
+    texSubImageArray(gl, x_off, y_off, mip_level, this.format, this.type, this._mipLevels, data)
+  } else {
+    throw new Error('gl-texture2d: Unsupported data type')
+  }
+}
+
+
+function isPacked(shape, stride) {
+  if(shape.length === 3) {
+    return  (stride[2] === 1) &&
+            (stride[1] === shape[0]*shape[2]) &&
+            (stride[0] === shape[2])
+  }
+  return  (stride[0] === 1) &&
+          (stride[1] === shape[0])
+}
+
+function texSubImageArray(gl, x_off, y_off, mip_level, cformat, ctype, mipLevels, array) {
+  var dtype = array.dtype
+  var shape = array.shape.slice()
+  if(shape.length < 2 || shape.length > 3) {
+    throw new Error('gl-texture2d: Invalid ndarray, must be 2d or 3d')
+  }
+  var type = 0, format = 0
+  var packed = isPacked(shape, array.stride.slice())
+  if(dtype === 'float32') {
+    type = gl.FLOAT
+  } else if(dtype === 'float64') {
+    type = gl.FLOAT
+    packed = false
+    dtype = 'float32'
+  } else if(dtype === 'uint8') {
+    type = gl.UNSIGNED_BYTE
+  } else {
+    type = gl.UNSIGNED_BYTE
+    packed = false
+    dtype = 'uint8'
+  }
+  var channels = 1
+  if(shape.length === 2) {
+    format = gl.LUMINANCE
+    shape = [shape[0], shape[1], 1]
+    array = ndarray(array.data, shape, [array.stride[0], array.stride[1], 1], array.offset)
+  } else if(shape.length === 3) {
+    if(shape[2] === 1) {
+      format = gl.ALPHA
+    } else if(shape[2] === 2) {
+      format = gl.LUMINANCE_ALPHA
+    } else if(shape[2] === 3) {
+      format = gl.RGB
+    } else if(shape[2] === 4) {
+      format = gl.RGBA
+    } else {
+      throw new Error('gl-texture2d: Invalid shape for pixel coords')
+    }
+    channels = shape[2]
+  } else {
+    throw new Error('gl-texture2d: Invalid shape for texture')
+  }
+  //For 1-channel textures allow conversion between formats
+  if((format  === gl.LUMINANCE || format  === gl.ALPHA) &&
+     (cformat === gl.LUMINANCE || cformat === gl.ALPHA)) {
+    format = cformat
+  }
+  if(format !== cformat) {
+    throw new Error('gl-texture2d: Incompatible texture format for setPixels')
+  }
+  var size = array.size
+  var needsMip = mipLevels.indexOf(mip_level) < 0
+  if(needsMip) {
+    mipLevels.push(mip_level)
+  }
+  if(type === ctype && packed) {
+    //Array data types are compatible, can directly copy into texture
+    if(array.offset === 0 && array.data.length === size) {
+      if(needsMip) {
+        gl.texImage2D(gl.TEXTURE_2D, mip_level, cformat, shape[0], shape[1], 0, cformat, ctype, array.data)
+      } else {
+        gl.texSubImage2D(gl.TEXTURE_2D, mip_level, x_off, y_off, shape[0], shape[1], cformat, ctype, array.data)
+      }
+    } else {
+      if(needsMip) {
+        gl.texImage2D(gl.TEXTURE_2D, mip_level, cformat, shape[0], shape[1], 0, cformat, ctype, array.data.subarray(array.offset, array.offset+size))
+      } else {
+        gl.texSubImage2D(gl.TEXTURE_2D, mip_level, x_off, y_off, shape[0], shape[1], cformat, ctype, array.data.subarray(array.offset, array.offset+size))
+      }
+    }
+  } else {
+    //Need to do type conversion to pack data into buffer
+    var pack_buffer
+    if(ctype === gl.FLOAT) {
+      pack_buffer = pool.mallocFloat32(size)
+    } else {
+      pack_buffer = pool.mallocUint8(size)
+    }
+    var pack_view = ndarray(pack_buffer, shape, [shape[2], shape[2]*shape[0], 1])
+    if(type === gl.FLOAT && ctype === gl.UNSIGNED_BYTE) {
+      convertFloatToUint8(pack_view, array)
+    } else {
+      ops.assign(pack_view, array)
+    }
+    if(needsMip) {
+      gl.texImage2D(gl.TEXTURE_2D, mip_level, cformat, shape[0], shape[1], 0, cformat, ctype, pack_buffer.subarray(0, size))
+    } else {
+      gl.texSubImage2D(gl.TEXTURE_2D, mip_level, x_off, y_off, shape[0], shape[1], cformat, ctype, pack_buffer.subarray(0, size))
+    }
+    if(ctype === gl.FLOAT) {
+      pool.freeFloat32(pack_buffer)
+    } else {
+      pool.freeUint8(pack_buffer)
+    }
+  }
+}
+
+function initTexture(gl) {
+  var tex = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, tex)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  return tex
+}
+
+function createTextureShape(gl, width, height, format, type) {
+  var maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+  if(width < 0 || width > maxTextureSize || height < 0 || height  > maxTextureSize) {
+    throw new Error('gl-texture2d: Invalid texture shape')
+  }
+  if(type === gl.FLOAT && !gl.getExtension('OES_texture_float')) {
+    throw new Error('gl-texture2d: Floating point textures not supported on this platform')
+  }
+  var tex = initTexture(gl)
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, format, type, null)
+  return new Texture2D(gl, tex, width, height, format, type)
+}
+
+function createTextureDOM(gl, element, format, type) {
+  var tex = initTexture(gl)
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, format, type, element)
+  return new Texture2D(gl, tex, element.width|0, element.height|0, format, type)
+}
+
+//Creates a texture from an ndarray
+function createTextureArray(gl, array) {
+  var dtype = array.dtype
+  var shape = array.shape.slice()
+  var maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+  if(shape[0] < 0 || shape[0] > maxSize || shape[1] < 0 || shape[1] > maxSize) {
+    throw new Error('gl-texture2d: Invalid texture size')
+  }
+  var packed = isPacked(shape, array.stride.slice())
+  var type = 0
+  if(dtype === 'float32') {
+    type = gl.FLOAT
+  } else if(dtype === 'float64') {
+    type = gl.FLOAT
+    packed = false
+    dtype = 'float32'
+  } else if(dtype === 'uint8') {
+    type = gl.UNSIGNED_BYTE
+  } else {
+    type = gl.UNSIGNED_BYTE
+    packed = false
+    dtype = 'uint8'
+  }
+  var format = 0
+  if(shape.length === 2) {
+    format = gl.LUMINANCE
+    shape = [shape[0], shape[1], 1]
+    array = ndarray(array.data, shape, [array.stride[0], array.stride[1], 1], array.offset)
+  } else if(shape.length === 3) {
+    if(shape[2] === 1) {
+      format = gl.ALPHA
+    } else if(shape[2] === 2) {
+      format = gl.LUMINANCE_ALPHA
+    } else if(shape[2] === 3) {
+      format = gl.RGB
+    } else if(shape[2] === 4) {
+      format = gl.RGBA
+    } else {
+      throw new Error('gl-texture2d: Invalid shape for pixel coords')
+    }
+  } else {
+    throw new Error('gl-texture2d: Invalid shape for texture')
+  }
+  if(type === gl.FLOAT && !gl.getExtension('OES_texture_float')) {
+    type = gl.UNSIGNED_BYTE
+    packed = false
+  }
+  var buffer, buf_store
+  var size = array.size
+  if(!packed) {
+    var stride = [shape[2], shape[2]*shape[0], 1]
+    buf_store = pool.malloc(size, dtype)
+    var buf_array = ndarray(buf_store, shape, stride, 0)
+    if((dtype === 'float32' || dtype === 'float64') && type === gl.UNSIGNED_BYTE) {
+      convertFloatToUint8(buf_array, array)
+    } else {
+      ops.assign(buf_array, array)
+    }
+    buffer = buf_store.subarray(0, size)
+  } else if (array.offset === 0 && array.data.length === size) {
+    buffer = array.data
+  } else {
+    buffer = array.data.subarray(array.offset, array.offset + size)
+  }
+  var tex = initTexture(gl)
+  gl.texImage2D(gl.TEXTURE_2D, 0, format, shape[0], shape[1], 0, format, type, buffer)
+  if(!packed) {
+    pool.free(buf_store)
+  }
+  return new Texture2D(gl, tex, shape[0], shape[1], format, type)
+}
+
+function createTexture2D(gl) {
+  if(arguments.length <= 1) {
+    throw new Error('gl-texture2d: Missing arguments for texture2d constructor')
+  }
+  if(!linearTypes) {
+    lazyInitLinearTypes(gl)
+  }
+  if(typeof arguments[1] === 'number') {
+    return createTextureShape(gl, arguments[1], arguments[2], arguments[3]||gl.RGBA, arguments[4]||gl.UNSIGNED_BYTE)
+  }
+  if(Array.isArray(arguments[1])) {
+    return createTextureShape(gl, arguments[1][0]|0, arguments[1][1]|0, arguments[2]||gl.RGBA, arguments[3]||gl.UNSIGNED_BYTE)
+  }
+  if(typeof arguments[1] === 'object') {
+    var obj = arguments[1]
+    if(obj instanceof HTMLCanvasElement ||
+       obj instanceof HTMLImageElement ||
+       obj instanceof HTMLVideoElement ||
+       obj instanceof ImageData) {
+      return createTextureDOM(gl, obj, arguments[2]||gl.RGBA, arguments[3]||gl.UNSIGNED_BYTE)
+    } else if(obj.shape && obj.data && obj.stride) {
+      return createTextureArray(gl, obj)
+    }
+  }
+  throw new Error('gl-texture2d: Invalid arguments for texture2d constructor')
+}
+
+},{"ndarray":175,"ndarray-ops":169,"typedarray-pool":179}],175:[function(require,module,exports){
+arguments[4][16][0].apply(exports,arguments)
+},{"dup":16,"iota-array":176,"is-buffer":177}],176:[function(require,module,exports){
+arguments[4][17][0].apply(exports,arguments)
+},{"dup":17}],177:[function(require,module,exports){
+arguments[4][18][0].apply(exports,arguments)
+},{"dup":18}],178:[function(require,module,exports){
+arguments[4][20][0].apply(exports,arguments)
+},{"dup":20}],179:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"bit-twiddle":162,"buffer":320,"dup":21}],180:[function(require,module,exports){
+'use strict'
+
+module.exports = createSelectBuffer
+
+var createFBO = require('gl-fbo')
+var pool      = require('typedarray-pool')
+var ndarray   = require('ndarray')
+
+var nextPow2  = require('bit-twiddle').nextPow2
+
+var selectRange = require('cwise/lib/wrapper')({"args":["array",{"offset":[0,0,1],"array":0},{"offset":[0,0,2],"array":0},{"offset":[0,0,3],"array":0},"scalar","scalar","index"],"pre":{"body":"{this_closestD2=1e8,this_closestX=-1,this_closestY=-1}","args":[],"thisVars":["this_closestD2","this_closestX","this_closestY"],"localVars":[]},"body":{"body":"{if(255>_inline_1_arg0_||255>_inline_1_arg1_||255>_inline_1_arg2_||255>_inline_1_arg3_){var _inline_1_l=_inline_1_arg4_-_inline_1_arg6_[0],_inline_1_a=_inline_1_arg5_-_inline_1_arg6_[1],_inline_1_f=_inline_1_l*_inline_1_l+_inline_1_a*_inline_1_a;_inline_1_f<this_closestD2&&(this_closestD2=_inline_1_f,this_closestX=_inline_1_arg6_[0],this_closestY=_inline_1_arg6_[1])}}","args":[{"name":"_inline_1_arg0_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg1_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg2_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg3_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg4_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg5_","lvalue":false,"rvalue":true,"count":1},{"name":"_inline_1_arg6_","lvalue":false,"rvalue":true,"count":4}],"thisVars":["this_closestD2","this_closestX","this_closestY"],"localVars":["_inline_1_a","_inline_1_f","_inline_1_l"]},"post":{"body":"{return[this_closestX,this_closestY,this_closestD2]}","args":[],"thisVars":["this_closestD2","this_closestX","this_closestY"],"localVars":[]},"debug":false,"funcName":"cwise","blockSize":64})
+
+function SelectResult(x, y, id, value, distance) {
+  this.coord = [x, y]
+  this.id = id
+  this.value = value
+  this.distance = distance
+}
+
+function SelectBuffer(gl, fbo, buffer) {
+  this.gl     = gl
+  this.fbo    = fbo
+  this.buffer = buffer
+  this._readTimeout = null
+  var self = this
+
+  this._readCallback = function() {
+    if(!self.gl) {
+      return
+    }
+    fbo.bind()
+    gl.readPixels(0,0,fbo.shape[0],fbo.shape[1],gl.RGBA,gl.UNSIGNED_BYTE,self.buffer)
+    self._readTimeout = null
+  }
+}
+
+var proto = SelectBuffer.prototype
+
+Object.defineProperty(proto, 'shape', {
+  get: function() {
+    if(!this.gl) {
+      return [0,0]
+    }
+    return this.fbo.shape.slice()
+  },
+  set: function(v) {
+    if(!this.gl) {
+      return
+    }
+    this.fbo.shape = v
+    var c = this.fbo.shape[0]
+    var r = this.fbo.shape[1]
+    if(r*c*4 > this.buffer.length) {
+      pool.free(this.buffer)
+      var buffer = this.buffer = pool.mallocUint8(nextPow2(r*c*4))
+      for(var i=0; i<r*c*4; ++i) {
+        buffer[i] = 0xff
+      }
+    }
+    return v
+  }
+})
+
+proto.begin = function() {
+  var gl = this.gl
+  var shape = this.shape
+  if(!gl) {
+    return
+  }
+
+  this.fbo.bind()
+  gl.clearColor(1,1,1,1)
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+}
+
+proto.end = function() {
+  var gl = this.gl
+  if(!gl) {
+    return
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  if(!this._readTimeout) {
+    clearTimeout(this._readTimeout)
+  }
+  this._readTimeout = setTimeout(this._readCallback, 1)
+}
+
+proto.query = function(x, y, radius) {
+  if(!this.gl) {
+    return null
+  }
+
+  var shape = this.fbo.shape.slice()
+
+  x = x|0
+  y = y|0
+  if(typeof radius !== 'number') {
+    radius = 1.0
+  }
+
+  var x0 = Math.min(Math.max(x - radius, 0), shape[0])|0
+  var x1 = Math.min(Math.max(x + radius, 0), shape[0])|0
+  var y0 = Math.min(Math.max(y - radius, 0), shape[1])|0
+  var y1 = Math.min(Math.max(y + radius, 0), shape[1])|0
+
+  if(x1 <= x0 || y1 <= y0) {
+    return null
+  }
+
+  var dims   = [x1-x0,y1-y0]
+  var region = ndarray(
+    this.buffer,
+    [dims[0], dims[1], 4],
+    [4, shape[0]*4, 1],
+    4*(x0 + shape[0]*y0));
+
+  var closest = selectRange(region.hi(dims[0],dims[1],1), radius, radius)
+  var dx = closest[0]
+  var dy = closest[1]
+  if(dx < 0 || Math.pow(this.radius, 2) < closest[2]) {
+    return null
+  }
+
+  var c0 = region.get(dx, dy, 0)
+  var c1 = region.get(dx, dy, 1)
+  var c2 = region.get(dx, dy, 2)
+  var c3 = region.get(dx, dy, 3)
+
+  return new SelectResult(
+     (dx + x0)|0,
+     (dy + y0)|0,
+     c0,
+     [c1, c2, c3],
+     Math.sqrt(closest[2]))
+}
+
+proto.dispose = function() {
+  if(!this.gl) {
+    return
+  }
+  this.fbo.dispose()
+  pool.free(this.buffer)
+  this.gl = null
+  if(this._readTimeout) {
+    clearTimeout(this._readTimeout)
+  }
+}
+
+function createSelectBuffer(gl, shape) {
+  var fbo = createFBO(gl, shape)
+  var buffer = pool.mallocUint8(shape[0]*shape[1]*4)
+  return new SelectBuffer(gl, fbo, buffer)
+}
+
+},{"bit-twiddle":162,"cwise/lib/wrapper":163,"gl-fbo":168,"ndarray":175,"typedarray-pool":179}],181:[function(require,module,exports){
 arguments[4][37][0].apply(exports,arguments)
-},{"./lib/create-attributes":163,"./lib/create-uniforms":164,"./lib/reflect":165,"./lib/runtime-reflect":166,"./lib/shader-cache":167,"dup":37}],163:[function(require,module,exports){
+},{"./lib/create-attributes":182,"./lib/create-uniforms":183,"./lib/reflect":184,"./lib/runtime-reflect":185,"./lib/shader-cache":186,"dup":37}],182:[function(require,module,exports){
 arguments[4][38][0].apply(exports,arguments)
-},{"dup":38}],164:[function(require,module,exports){
+},{"dup":38}],183:[function(require,module,exports){
 arguments[4][39][0].apply(exports,arguments)
-},{"./reflect":165,"dup":39}],165:[function(require,module,exports){
+},{"./reflect":184,"dup":39}],184:[function(require,module,exports){
 arguments[4][40][0].apply(exports,arguments)
-},{"dup":40}],166:[function(require,module,exports){
+},{"dup":40}],185:[function(require,module,exports){
 'use strict'
 
 exports.uniforms    = runtimeUniforms
@@ -15613,15 +16942,15 @@ function runtimeAttributes(gl, program) {
   return result
 }
 
-},{}],167:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 arguments[4][42][0].apply(exports,arguments)
-},{"dup":42,"weakmap-shim":170}],168:[function(require,module,exports){
+},{"dup":42,"weakmap-shim":189}],187:[function(require,module,exports){
 arguments[4][43][0].apply(exports,arguments)
-},{"./hidden-store.js":169,"dup":43}],169:[function(require,module,exports){
+},{"./hidden-store.js":188,"dup":43}],188:[function(require,module,exports){
 arguments[4][44][0].apply(exports,arguments)
-},{"dup":44}],170:[function(require,module,exports){
+},{"dup":44}],189:[function(require,module,exports){
 arguments[4][45][0].apply(exports,arguments)
-},{"./create-store.js":168,"dup":45}],171:[function(require,module,exports){
+},{"./create-store.js":187,"dup":45}],190:[function(require,module,exports){
 'use strict'
 
 module.exports = mouseListen
@@ -15830,7 +17159,7 @@ function mouseListen(element, callback) {
   return result
 }
 
-},{"mouse-event":172}],172:[function(require,module,exports){
+},{"mouse-event":191}],191:[function(require,module,exports){
 'use strict'
 
 function mouseButtons(ev) {
@@ -15892,7 +17221,7 @@ function mouseRelativeY(ev) {
 }
 exports.y = mouseRelativeY
 
-},{}],173:[function(require,module,exports){
+},{}],192:[function(require,module,exports){
 module.exports = function parseUnit(str, out) {
     if (!out)
         out = [ 0, '' ]
@@ -15903,7 +17232,7 @@ module.exports = function parseUnit(str, out) {
     out[1] = str.match(/[\d.\-\+]*\s*(.*)/)[1] || ''
     return out
 }
-},{}],174:[function(require,module,exports){
+},{}],193:[function(require,module,exports){
 'use strict'
 
 var parseUnit = require('parse-unit')
@@ -15964,7 +17293,7 @@ function toPX(str, element) {
   }
   return 1
 }
-},{"parse-unit":173}],175:[function(require,module,exports){
+},{"parse-unit":192}],194:[function(require,module,exports){
 'use strict'
 
 var toPX = require('to-px')
@@ -16003,265 +17332,269 @@ function mouseWheelListen(element, callback, noScroll) {
     }
   })
 }
-},{"to-px":174}],176:[function(require,module,exports){
+},{"to-px":193}],195:[function(require,module,exports){
 arguments[4][46][0].apply(exports,arguments)
-},{"./lib/vtext":177,"dup":46}],177:[function(require,module,exports){
+},{"./lib/vtext":196,"dup":46}],196:[function(require,module,exports){
 arguments[4][47][0].apply(exports,arguments)
-},{"cdt2d":178,"clean-pslg":196,"dup":47,"ndarray":242,"planar-graph-to-polyline":266,"simplify-planar-graph":276,"surface-nets":298}],178:[function(require,module,exports){
+},{"cdt2d":197,"clean-pslg":215,"dup":47,"ndarray":261,"planar-graph-to-polyline":285,"simplify-planar-graph":295,"surface-nets":317}],197:[function(require,module,exports){
 arguments[4][48][0].apply(exports,arguments)
-},{"./lib/delaunay":179,"./lib/filter":180,"./lib/monotone":181,"./lib/triangulation":182,"dup":48}],179:[function(require,module,exports){
+},{"./lib/delaunay":198,"./lib/filter":199,"./lib/monotone":200,"./lib/triangulation":201,"dup":48}],198:[function(require,module,exports){
 arguments[4][49][0].apply(exports,arguments)
-},{"binary-search-bounds":183,"dup":49,"robust-in-sphere":184}],180:[function(require,module,exports){
+},{"binary-search-bounds":202,"dup":49,"robust-in-sphere":203}],199:[function(require,module,exports){
 arguments[4][50][0].apply(exports,arguments)
-},{"binary-search-bounds":183,"dup":50}],181:[function(require,module,exports){
+},{"binary-search-bounds":202,"dup":50}],200:[function(require,module,exports){
 arguments[4][51][0].apply(exports,arguments)
-},{"binary-search-bounds":183,"dup":51,"robust-orientation":195}],182:[function(require,module,exports){
+},{"binary-search-bounds":202,"dup":51,"robust-orientation":214}],201:[function(require,module,exports){
 arguments[4][52][0].apply(exports,arguments)
-},{"binary-search-bounds":183,"dup":52}],183:[function(require,module,exports){
+},{"binary-search-bounds":202,"dup":52}],202:[function(require,module,exports){
 arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],184:[function(require,module,exports){
+},{"dup":6}],203:[function(require,module,exports){
 arguments[4][53][0].apply(exports,arguments)
-},{"dup":53,"robust-scale":186,"robust-subtract":187,"robust-sum":188,"two-product":189}],185:[function(require,module,exports){
+},{"dup":53,"robust-scale":205,"robust-subtract":206,"robust-sum":207,"two-product":208}],204:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],186:[function(require,module,exports){
+},{"dup":54}],205:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":189,"two-sum":185}],187:[function(require,module,exports){
+},{"dup":55,"two-product":208,"two-sum":204}],206:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],188:[function(require,module,exports){
+},{"dup":56}],207:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"dup":57}],189:[function(require,module,exports){
+},{"dup":57}],208:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"dup":58}],190:[function(require,module,exports){
+},{"dup":58}],209:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],191:[function(require,module,exports){
+},{"dup":54}],210:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":194,"two-sum":190}],192:[function(require,module,exports){
+},{"dup":55,"two-product":213,"two-sum":209}],211:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],193:[function(require,module,exports){
+},{"dup":56}],212:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"dup":57}],194:[function(require,module,exports){
+},{"dup":57}],213:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"dup":58}],195:[function(require,module,exports){
+},{"dup":58}],214:[function(require,module,exports){
 arguments[4][64][0].apply(exports,arguments)
-},{"dup":64,"robust-scale":191,"robust-subtract":192,"robust-sum":193,"two-product":194}],196:[function(require,module,exports){
+},{"dup":64,"robust-scale":210,"robust-subtract":211,"robust-sum":212,"two-product":213}],215:[function(require,module,exports){
 arguments[4][65][0].apply(exports,arguments)
-},{"./lib/rat-seg-intersect":197,"big-rat":201,"big-rat/cmp":199,"big-rat/to-float":216,"box-intersect":217,"compare-cell":227,"dup":65,"nextafter":228,"rat-vec":231,"robust-segment-intersect":240,"union-find":241}],197:[function(require,module,exports){
+},{"./lib/rat-seg-intersect":216,"big-rat":220,"big-rat/cmp":218,"big-rat/to-float":235,"box-intersect":236,"compare-cell":246,"dup":65,"nextafter":247,"rat-vec":250,"robust-segment-intersect":259,"union-find":260}],216:[function(require,module,exports){
 arguments[4][66][0].apply(exports,arguments)
-},{"big-rat/div":200,"big-rat/mul":210,"big-rat/sign":214,"big-rat/sub":215,"big-rat/to-float":216,"dup":66,"rat-vec/add":230,"rat-vec/muls":232,"rat-vec/sub":233}],198:[function(require,module,exports){
+},{"big-rat/div":219,"big-rat/mul":229,"big-rat/sign":233,"big-rat/sub":234,"big-rat/to-float":235,"dup":66,"rat-vec/add":249,"rat-vec/muls":251,"rat-vec/sub":252}],217:[function(require,module,exports){
 arguments[4][67][0].apply(exports,arguments)
-},{"./lib/rationalize":208,"dup":67}],199:[function(require,module,exports){
+},{"./lib/rationalize":227,"dup":67}],218:[function(require,module,exports){
 arguments[4][68][0].apply(exports,arguments)
-},{"dup":68}],200:[function(require,module,exports){
+},{"dup":68}],219:[function(require,module,exports){
 arguments[4][69][0].apply(exports,arguments)
-},{"./lib/rationalize":208,"dup":69}],201:[function(require,module,exports){
+},{"./lib/rationalize":227,"dup":69}],220:[function(require,module,exports){
 arguments[4][70][0].apply(exports,arguments)
-},{"./div":200,"./is-rat":202,"./lib/is-bn":206,"./lib/num-to-bn":207,"./lib/rationalize":208,"./lib/str-to-bn":209,"dup":70}],202:[function(require,module,exports){
+},{"./div":219,"./is-rat":221,"./lib/is-bn":225,"./lib/num-to-bn":226,"./lib/rationalize":227,"./lib/str-to-bn":228,"dup":70}],221:[function(require,module,exports){
 arguments[4][71][0].apply(exports,arguments)
-},{"./lib/is-bn":206,"dup":71}],203:[function(require,module,exports){
+},{"./lib/is-bn":225,"dup":71}],222:[function(require,module,exports){
 arguments[4][72][0].apply(exports,arguments)
-},{"bn.js":212,"dup":72}],204:[function(require,module,exports){
+},{"bn.js":231,"dup":72}],223:[function(require,module,exports){
 arguments[4][73][0].apply(exports,arguments)
-},{"dup":73}],205:[function(require,module,exports){
+},{"dup":73}],224:[function(require,module,exports){
 arguments[4][74][0].apply(exports,arguments)
-},{"bit-twiddle":211,"double-bits":213,"dup":74}],206:[function(require,module,exports){
+},{"bit-twiddle":230,"double-bits":232,"dup":74}],225:[function(require,module,exports){
 arguments[4][75][0].apply(exports,arguments)
-},{"bn.js":212,"dup":75}],207:[function(require,module,exports){
+},{"bn.js":231,"dup":75}],226:[function(require,module,exports){
 arguments[4][76][0].apply(exports,arguments)
-},{"bn.js":212,"double-bits":213,"dup":76}],208:[function(require,module,exports){
+},{"bn.js":231,"double-bits":232,"dup":76}],227:[function(require,module,exports){
 arguments[4][77][0].apply(exports,arguments)
-},{"./bn-sign":203,"./num-to-bn":207,"dup":77}],209:[function(require,module,exports){
+},{"./bn-sign":222,"./num-to-bn":226,"dup":77}],228:[function(require,module,exports){
 arguments[4][78][0].apply(exports,arguments)
-},{"bn.js":212,"dup":78}],210:[function(require,module,exports){
+},{"bn.js":231,"dup":78}],229:[function(require,module,exports){
 arguments[4][79][0].apply(exports,arguments)
-},{"./lib/rationalize":208,"dup":79}],211:[function(require,module,exports){
+},{"./lib/rationalize":227,"dup":79}],230:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],212:[function(require,module,exports){
+},{"dup":19}],231:[function(require,module,exports){
 arguments[4][81][0].apply(exports,arguments)
-},{"dup":81}],213:[function(require,module,exports){
+},{"dup":81}],232:[function(require,module,exports){
 arguments[4][82][0].apply(exports,arguments)
-},{"buffer":301,"dup":82}],214:[function(require,module,exports){
+},{"buffer":320,"dup":82}],233:[function(require,module,exports){
 arguments[4][83][0].apply(exports,arguments)
-},{"./lib/bn-sign":203,"dup":83}],215:[function(require,module,exports){
+},{"./lib/bn-sign":222,"dup":83}],234:[function(require,module,exports){
 arguments[4][84][0].apply(exports,arguments)
-},{"./lib/rationalize":208,"dup":84}],216:[function(require,module,exports){
+},{"./lib/rationalize":227,"dup":84}],235:[function(require,module,exports){
 arguments[4][85][0].apply(exports,arguments)
-},{"./lib/bn-to-num":204,"./lib/ctz":205,"dup":85}],217:[function(require,module,exports){
+},{"./lib/bn-to-num":223,"./lib/ctz":224,"dup":85}],236:[function(require,module,exports){
 arguments[4][86][0].apply(exports,arguments)
-},{"./lib/intersect":219,"./lib/sweep":223,"dup":86,"typedarray-pool":226}],218:[function(require,module,exports){
+},{"./lib/intersect":238,"./lib/sweep":242,"dup":86,"typedarray-pool":245}],237:[function(require,module,exports){
 arguments[4][87][0].apply(exports,arguments)
-},{"dup":87}],219:[function(require,module,exports){
+},{"dup":87}],238:[function(require,module,exports){
 arguments[4][88][0].apply(exports,arguments)
-},{"./brute":218,"./median":220,"./partition":221,"./sweep":223,"bit-twiddle":224,"dup":88,"typedarray-pool":226}],220:[function(require,module,exports){
+},{"./brute":237,"./median":239,"./partition":240,"./sweep":242,"bit-twiddle":243,"dup":88,"typedarray-pool":245}],239:[function(require,module,exports){
 arguments[4][89][0].apply(exports,arguments)
-},{"./partition":221,"dup":89}],221:[function(require,module,exports){
+},{"./partition":240,"dup":89}],240:[function(require,module,exports){
 arguments[4][90][0].apply(exports,arguments)
-},{"dup":90}],222:[function(require,module,exports){
+},{"dup":90}],241:[function(require,module,exports){
 arguments[4][91][0].apply(exports,arguments)
-},{"dup":91}],223:[function(require,module,exports){
+},{"dup":91}],242:[function(require,module,exports){
 arguments[4][92][0].apply(exports,arguments)
-},{"./sort":222,"bit-twiddle":224,"dup":92,"typedarray-pool":226}],224:[function(require,module,exports){
+},{"./sort":241,"bit-twiddle":243,"dup":92,"typedarray-pool":245}],243:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],225:[function(require,module,exports){
+},{"dup":19}],244:[function(require,module,exports){
 arguments[4][20][0].apply(exports,arguments)
-},{"dup":20}],226:[function(require,module,exports){
+},{"dup":20}],245:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":224,"buffer":301,"dup":21}],227:[function(require,module,exports){
+},{"bit-twiddle":243,"buffer":320,"dup":21}],246:[function(require,module,exports){
 arguments[4][94][0].apply(exports,arguments)
-},{"dup":94}],228:[function(require,module,exports){
+},{"dup":94}],247:[function(require,module,exports){
 arguments[4][95][0].apply(exports,arguments)
-},{"double-bits":229,"dup":95}],229:[function(require,module,exports){
+},{"double-bits":248,"dup":95}],248:[function(require,module,exports){
 arguments[4][82][0].apply(exports,arguments)
-},{"buffer":301,"dup":82}],230:[function(require,module,exports){
+},{"buffer":320,"dup":82}],249:[function(require,module,exports){
 arguments[4][97][0].apply(exports,arguments)
-},{"big-rat/add":198,"dup":97}],231:[function(require,module,exports){
+},{"big-rat/add":217,"dup":97}],250:[function(require,module,exports){
 arguments[4][98][0].apply(exports,arguments)
-},{"big-rat":201,"dup":98}],232:[function(require,module,exports){
+},{"big-rat":220,"dup":98}],251:[function(require,module,exports){
 arguments[4][99][0].apply(exports,arguments)
-},{"big-rat":201,"big-rat/mul":210,"dup":99}],233:[function(require,module,exports){
+},{"big-rat":220,"big-rat/mul":229,"dup":99}],252:[function(require,module,exports){
 arguments[4][100][0].apply(exports,arguments)
-},{"big-rat/sub":215,"dup":100}],234:[function(require,module,exports){
+},{"big-rat/sub":234,"dup":100}],253:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],235:[function(require,module,exports){
+},{"dup":54}],254:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":238,"two-sum":234}],236:[function(require,module,exports){
+},{"dup":55,"two-product":257,"two-sum":253}],255:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],237:[function(require,module,exports){
+},{"dup":56}],256:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"dup":57}],238:[function(require,module,exports){
+},{"dup":57}],257:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"dup":58}],239:[function(require,module,exports){
+},{"dup":58}],258:[function(require,module,exports){
 arguments[4][64][0].apply(exports,arguments)
-},{"dup":64,"robust-scale":235,"robust-subtract":236,"robust-sum":237,"two-product":238}],240:[function(require,module,exports){
+},{"dup":64,"robust-scale":254,"robust-subtract":255,"robust-sum":256,"two-product":257}],259:[function(require,module,exports){
 arguments[4][107][0].apply(exports,arguments)
-},{"dup":107,"robust-orientation":239}],241:[function(require,module,exports){
+},{"dup":107,"robust-orientation":258}],260:[function(require,module,exports){
 arguments[4][108][0].apply(exports,arguments)
-},{"dup":108}],242:[function(require,module,exports){
+},{"dup":108}],261:[function(require,module,exports){
 arguments[4][16][0].apply(exports,arguments)
-},{"dup":16,"iota-array":243,"is-buffer":244}],243:[function(require,module,exports){
+},{"dup":16,"iota-array":262,"is-buffer":263}],262:[function(require,module,exports){
 arguments[4][17][0].apply(exports,arguments)
-},{"dup":17}],244:[function(require,module,exports){
+},{"dup":17}],263:[function(require,module,exports){
 arguments[4][18][0].apply(exports,arguments)
-},{"dup":18}],245:[function(require,module,exports){
+},{"dup":18}],264:[function(require,module,exports){
 arguments[4][112][0].apply(exports,arguments)
-},{"dup":112,"edges-to-adjacency-list":246}],246:[function(require,module,exports){
+},{"dup":112,"edges-to-adjacency-list":265}],265:[function(require,module,exports){
 arguments[4][113][0].apply(exports,arguments)
-},{"dup":113,"uniq":265}],247:[function(require,module,exports){
+},{"dup":113,"uniq":284}],266:[function(require,module,exports){
 arguments[4][114][0].apply(exports,arguments)
-},{"compare-angle":248,"dup":114}],248:[function(require,module,exports){
+},{"compare-angle":267,"dup":114}],267:[function(require,module,exports){
 arguments[4][115][0].apply(exports,arguments)
-},{"dup":115,"robust-orientation":262,"robust-product":250,"robust-sum":263,"signum":251,"two-sum":252}],249:[function(require,module,exports){
+},{"dup":115,"robust-orientation":281,"robust-product":269,"robust-sum":282,"signum":270,"two-sum":271}],268:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":264,"two-sum":252}],250:[function(require,module,exports){
+},{"dup":55,"two-product":283,"two-sum":271}],269:[function(require,module,exports){
 arguments[4][117][0].apply(exports,arguments)
-},{"dup":117,"robust-scale":249,"robust-sum":263}],251:[function(require,module,exports){
+},{"dup":117,"robust-scale":268,"robust-sum":282}],270:[function(require,module,exports){
 arguments[4][118][0].apply(exports,arguments)
-},{"dup":118}],252:[function(require,module,exports){
+},{"dup":118}],271:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],253:[function(require,module,exports){
+},{"dup":54}],272:[function(require,module,exports){
 arguments[4][120][0].apply(exports,arguments)
-},{"dup":120}],254:[function(require,module,exports){
+},{"dup":120}],273:[function(require,module,exports){
 arguments[4][121][0].apply(exports,arguments)
-},{"binary-search-bounds":253,"dup":121}],255:[function(require,module,exports){
+},{"binary-search-bounds":272,"dup":121}],274:[function(require,module,exports){
 arguments[4][122][0].apply(exports,arguments)
-},{"dup":122,"robust-orientation":262}],256:[function(require,module,exports){
+},{"dup":122,"robust-orientation":281}],275:[function(require,module,exports){
 arguments[4][123][0].apply(exports,arguments)
-},{"dup":123}],257:[function(require,module,exports){
+},{"dup":123}],276:[function(require,module,exports){
 arguments[4][124][0].apply(exports,arguments)
-},{"./lib/order-segments":255,"binary-search-bounds":253,"dup":124,"functional-red-black-tree":256,"robust-orientation":262}],258:[function(require,module,exports){
+},{"./lib/order-segments":274,"binary-search-bounds":272,"dup":124,"functional-red-black-tree":275,"robust-orientation":281}],277:[function(require,module,exports){
 arguments[4][125][0].apply(exports,arguments)
-},{"binary-search-bounds":253,"dup":125,"interval-tree-1d":254,"robust-orientation":262,"slab-decomposition":257}],259:[function(require,module,exports){
+},{"binary-search-bounds":272,"dup":125,"interval-tree-1d":273,"robust-orientation":281,"slab-decomposition":276}],278:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],260:[function(require,module,exports){
+},{"dup":54}],279:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":264,"two-sum":259}],261:[function(require,module,exports){
+},{"dup":55,"two-product":283,"two-sum":278}],280:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],262:[function(require,module,exports){
+},{"dup":56}],281:[function(require,module,exports){
 arguments[4][64][0].apply(exports,arguments)
-},{"dup":64,"robust-scale":260,"robust-subtract":261,"robust-sum":263,"two-product":264}],263:[function(require,module,exports){
+},{"dup":64,"robust-scale":279,"robust-subtract":280,"robust-sum":282,"two-product":283}],282:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"dup":57}],264:[function(require,module,exports){
+},{"dup":57}],283:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"dup":58}],265:[function(require,module,exports){
+},{"dup":58}],284:[function(require,module,exports){
 arguments[4][15][0].apply(exports,arguments)
-},{"dup":15}],266:[function(require,module,exports){
+},{"dup":15}],285:[function(require,module,exports){
 arguments[4][133][0].apply(exports,arguments)
-},{"./lib/trim-leaves":245,"dup":133,"edges-to-adjacency-list":246,"planar-dual":247,"point-in-big-polygon":258,"robust-sum":263,"two-product":264,"uniq":265}],267:[function(require,module,exports){
+},{"./lib/trim-leaves":264,"dup":133,"edges-to-adjacency-list":265,"planar-dual":266,"point-in-big-polygon":277,"robust-sum":282,"two-product":283,"uniq":284}],286:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"dup":54}],268:[function(require,module,exports){
+},{"dup":54}],287:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"dup":55,"two-product":271,"two-sum":267}],269:[function(require,module,exports){
+},{"dup":55,"two-product":290,"two-sum":286}],288:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],270:[function(require,module,exports){
+},{"dup":56}],289:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"dup":57}],271:[function(require,module,exports){
+},{"dup":57}],290:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"dup":58}],272:[function(require,module,exports){
+},{"dup":58}],291:[function(require,module,exports){
 arguments[4][64][0].apply(exports,arguments)
-},{"dup":64,"robust-scale":268,"robust-subtract":269,"robust-sum":270,"two-product":271}],273:[function(require,module,exports){
+},{"dup":64,"robust-scale":287,"robust-subtract":288,"robust-sum":289,"two-product":290}],292:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],274:[function(require,module,exports){
+},{"dup":19}],293:[function(require,module,exports){
 arguments[4][141][0].apply(exports,arguments)
-},{"dup":141}],275:[function(require,module,exports){
+},{"dup":141}],294:[function(require,module,exports){
 arguments[4][142][0].apply(exports,arguments)
-},{"bit-twiddle":273,"dup":142,"union-find":274}],276:[function(require,module,exports){
+},{"bit-twiddle":292,"dup":142,"union-find":293}],295:[function(require,module,exports){
 arguments[4][143][0].apply(exports,arguments)
-},{"dup":143,"robust-orientation":272,"simplicial-complex":275}],277:[function(require,module,exports){
+},{"dup":143,"robust-orientation":291,"simplicial-complex":294}],296:[function(require,module,exports){
 arguments[4][144][0].apply(exports,arguments)
-},{"dup":144,"typedarray-pool":280}],278:[function(require,module,exports){
+},{"dup":144,"typedarray-pool":299}],297:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],279:[function(require,module,exports){
+},{"dup":19}],298:[function(require,module,exports){
 arguments[4][20][0].apply(exports,arguments)
-},{"dup":20}],280:[function(require,module,exports){
+},{"dup":20}],299:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":278,"buffer":301,"dup":21}],281:[function(require,module,exports){
+},{"bit-twiddle":297,"buffer":320,"dup":21}],300:[function(require,module,exports){
 arguments[4][145][0].apply(exports,arguments)
-},{"dup":145}],282:[function(require,module,exports){
+},{"dup":145}],301:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],283:[function(require,module,exports){
+},{"dup":19}],302:[function(require,module,exports){
 arguments[4][20][0].apply(exports,arguments)
-},{"dup":20}],284:[function(require,module,exports){
+},{"dup":20}],303:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":282,"buffer":301,"dup":21}],285:[function(require,module,exports){
+},{"bit-twiddle":301,"buffer":320,"dup":21}],304:[function(require,module,exports){
 arguments[4][146][0].apply(exports,arguments)
-},{"dup":146,"typedarray-pool":284}],286:[function(require,module,exports){
+},{"dup":146,"typedarray-pool":303}],305:[function(require,module,exports){
 arguments[4][147][0].apply(exports,arguments)
-},{"dup":147,"invert-permutation":287,"typedarray-pool":290}],287:[function(require,module,exports){
+},{"dup":147,"invert-permutation":306,"typedarray-pool":309}],306:[function(require,module,exports){
 arguments[4][148][0].apply(exports,arguments)
-},{"dup":148}],288:[function(require,module,exports){
+},{"dup":148}],307:[function(require,module,exports){
 arguments[4][19][0].apply(exports,arguments)
-},{"dup":19}],289:[function(require,module,exports){
+},{"dup":19}],308:[function(require,module,exports){
 arguments[4][20][0].apply(exports,arguments)
-},{"dup":20}],290:[function(require,module,exports){
+},{"dup":20}],309:[function(require,module,exports){
 arguments[4][21][0].apply(exports,arguments)
-},{"bit-twiddle":288,"buffer":301,"dup":21}],291:[function(require,module,exports){
+},{"bit-twiddle":307,"buffer":320,"dup":21}],310:[function(require,module,exports){
 arguments[4][149][0].apply(exports,arguments)
-},{"dup":149,"gamma":281,"permutation-parity":285,"permutation-rank":286}],292:[function(require,module,exports){
+},{"dup":149,"gamma":300,"permutation-parity":304,"permutation-rank":305}],311:[function(require,module,exports){
 arguments[4][150][0].apply(exports,arguments)
-},{"cwise-compiler":293,"dup":150}],293:[function(require,module,exports){
+},{"cwise-compiler":312,"dup":150}],312:[function(require,module,exports){
 arguments[4][12][0].apply(exports,arguments)
-},{"./lib/thunk.js":295,"dup":12}],294:[function(require,module,exports){
+},{"./lib/thunk.js":314,"dup":12}],313:[function(require,module,exports){
 arguments[4][13][0].apply(exports,arguments)
-},{"dup":13,"uniq":296}],295:[function(require,module,exports){
+},{"dup":13,"uniq":315}],314:[function(require,module,exports){
 arguments[4][14][0].apply(exports,arguments)
-},{"./compile.js":294,"dup":14}],296:[function(require,module,exports){
+},{"./compile.js":313,"dup":14}],315:[function(require,module,exports){
 arguments[4][15][0].apply(exports,arguments)
-},{"dup":15}],297:[function(require,module,exports){
+},{"dup":15}],316:[function(require,module,exports){
 arguments[4][155][0].apply(exports,arguments)
-},{"./lib/zc-core":292,"dup":155}],298:[function(require,module,exports){
+},{"./lib/zc-core":311,"dup":155}],317:[function(require,module,exports){
 arguments[4][156][0].apply(exports,arguments)
-},{"dup":156,"ndarray-extract-contour":277,"triangulate-hypercube":291,"zero-crossings":297}],299:[function(require,module,exports){
+},{"dup":156,"ndarray-extract-contour":296,"triangulate-hypercube":310,"zero-crossings":316}],318:[function(require,module,exports){
 arguments[4][157][0].apply(exports,arguments)
-},{"_process":305,"dup":157,"vectorize-text":176}],300:[function(require,module,exports){
+},{"_process":324,"dup":157,"vectorize-text":195}],319:[function(require,module,exports){
 'use strict'
 
 module.exports = createGLPlot2D
+
+var createPick = require('gl-select-static')
 
 var createGrid = require('./lib/grid')
 var createText = require('./lib/text')
 var createLine = require('./lib/line')
 
-function GLPlot2D(gl) {
+function GLPlot2D(gl, pickBuffer) {
   this.gl               = gl
+  this.pickBuffer       = pickBuffer
+
   this.screenBox        = [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]
   this.viewBox          = [0, 0, 0, 0]
   this.dataBox          = [-10, -10, 10, 10]
@@ -16315,6 +17648,14 @@ function GLPlot2D(gl) {
                            [0,0,0,1],
                            [0,0,0,1]]
 
+  this.spikeEnable      = [true, true, false, false]
+  this.spikeWidth       = [1,1,1,1]
+  this.spikeColor       = [[0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1],
+                           [0,0,0,1]]
+  this.spikeCenter      = [0,0]
+
   //Drawing parameters
   this.grid             = null
   this.text             = null
@@ -16324,21 +17665,28 @@ function GLPlot2D(gl) {
 
   this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
-  this.dirty      = false
-  this.pickDirty  = false
+  this.dirty        = false
+  this.pickDirty    = false
+  this.pickDelay    = 120
+  this.pickRadius   = 10
+  this._pickTimeout = null
+  this._drawPick    = this.drawPick.bind(this)
 }
 
 var proto = GLPlot2D.prototype
 
-proto.redraw = function() {
-  if(this.dirty) {
-    this.draw()
-    this.dirty = false
-  }
-}
-
 proto.setDirty = function() {
   this.dirty = this.pickDirty = true
+}
+
+proto.setSpike = function(x, y) {
+  x = isNaN(+x) ? Infinity : +x
+  y = isNaN(+y) ? Infinity : +y
+  this.dirty = this.dirty ||
+               this.spikeCenter[0] !== x ||
+               this.spikeCenter[1] !== y
+  this.spikeCenter[0] = x
+  this.spikeCenter[1] = y
 }
 
 function lerp(a, b, t) {
@@ -16358,6 +17706,21 @@ return function() {
   var line       = this.line
   var text       = this.text
   var objects    = this.objects
+
+  if(this.pickDirty) {
+    if(this._pickTimeout) {
+      clearTimeout(this._pickTimeout)
+    }
+    this.pickDirty = false
+    this._pickTimeout = setTimeout(this._drawPick, this.pickDelay)
+  }
+
+  if(!this.dirty) {
+    return
+  }
+  this.dirty = false
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
   //Turn on scissor
   gl.enable(gl.SCISSOR_TEST)
@@ -16455,11 +17818,50 @@ return function() {
 
   //TODO: Draw tick marks
 
+  //Draw line elements
+  line.bind()
+
+  //Draw spikes
+  var spikeEnable = this.spikeEnable
+  var spikeWidth  = this.spikeWidth
+  var spikeColor  = this.spikeColor
+  var spikeCenter = this.spikeCenter
+  if(dataBox[0] <= spikeCenter[0] && spikeCenter[0] <= dataBox[2] &&
+     dataBox[1] <= spikeCenter[1] && spikeCenter[1] <= dataBox[3]) {
+
+    var centerX = viewPixels[0] + (spikeCenter[0] - dataBox[0]) / (dataBox[2] - dataBox[0]) * (viewPixels[2] - viewPixels[0])
+    var centerY = viewPixels[1] + (spikeCenter[1] - dataBox[1]) / (dataBox[3] - dataBox[1]) * (viewPixels[3] - viewPixels[1])
+
+    if(spikeEnable[0]) {
+     line.drawLine(
+       centerX, centerY,
+       viewPixels[0], centerY,
+       spikeWidth[0], spikeColor[0])
+    }
+    if(spikeEnable[1]) {
+     line.drawLine(
+       centerX, centerY,
+       centerX, viewPixels[1],
+       spikeWidth[1], spikeColor[1])
+    }
+    if(spikeEnable[2]) {
+      line.drawLine(
+        centerX, centerY,
+        viewPixels[2], centerY,
+        spikeWidth[2], spikeColor[2])
+    }
+    if(spikeEnable[3]) {
+      line.drawLine(
+        centerX, centerY,
+        centerX, viewPixels[3],
+        spikeWidth[3], spikeColor[3])
+    }
+  }
+
   //Draw border lines
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
   var borderLineColor  = this.borderLineColor
-  line.bind()
   if(borderLineEnable[0]) {
     line.drawLine(
       viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
@@ -16494,14 +17896,62 @@ return function() {
     text.drawTitle()
   }
 
-  //TODO: Draw spikes
-
   //TODO: Draw other overlay elements (select boxes, etc.)
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
   gl.disable(gl.BLEND)
   gl.depthMask(true)
+}
+})()
+
+proto.drawPick = (function() {
+
+return function() {
+  var pickBuffer = this.pickBuffer
+  var gl = this.gl
+
+  this._pickTimeout = null
+  pickBuffer.begin()
+
+  var pickOffset = 1
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    pickOffset += objects[i].drawPick(pickOffset)
+  }
+
+  pickBuffer.end()
+}
+})()
+
+proto.pick = (function() {
+return function(x, y) {
+  var pixelRatio     = this.pixelRatio
+  var pickPixelRatio = this.pickPixelRatio
+  var viewBox        = this.viewBox
+
+  var scrX = Math.round((x - viewBox[0] / pixelRatio) * pickPixelRatio)|0
+  var scrY = Math.round((y - viewBox[1] / pixelRatio) * pickPixelRatio)|0
+
+  var pickResult = this.pickBuffer.query(scrX, scrY, this.pickRadius)
+  if(!pickResult) {
+    return null
+  }
+
+  var pickValue = pickResult.id +
+    (pickResult.value[0]<<8)  +
+    (pickResult.value[1]<<16) +
+    (pickResult.value[2]<<24)
+
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    var result = objects[i].pick(scrX, scrY, pickValue)
+    if(result) {
+      return result
+    }
+  }
+
+  return null
 }
 })()
 
@@ -16517,22 +17967,53 @@ function compareTicks(a, b) {
   return a.x - b.x
 }
 
+proto.setScreenBox = function(nbox) {
+  this.setDirty()
+}
+
+proto.setDataBox = function(nbox) {
+  var dataBox = this.dataBox
+
+  dataBox[0] = nbox[0]
+  dataBox[1] = nbox[1]
+  dataBox[2] = nbox[2]
+  dataBox[3] = nbox[3]
+
+  this.setDirty()
+}
+
+proto.setViewBox = function(nbox) {
+  var pixelRatio = this.pixelRatio
+  var viewBox = this.viewBox
+  viewBox[0] = Math.round(nbox[0] * pixelRatio)|0
+  viewBox[1] = Math.round(nbox[1] * pixelRatio)|0
+  viewBox[2] = Math.round(nbox[2] * pixelRatio)|0
+  viewBox[3] = Math.round(nbox[3] * pixelRatio)|0
+
+  var pickPixelRatio = this.pickPixelRatio
+  this.pickBuffer.shape = [
+    Math.round((nbox[2] - nbox[0]) * pickPixelRatio)|0,
+    Math.round((nbox[3] - nbox[1]) * pickPixelRatio)|0 ]
+
+  this.setDirty()
+}
+
 proto.update = function(options) {
   options = options || {}
 
   var gl = this.gl
+  this.pixelRatio      = options.pixelRatio || 1
+  var pixelRatio       = this.pixelRatio
+  this.pickPixelRatio  = Math.max(pixelRatio, 1)
   this.screenBox       = (options.screenBox ||
     [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]).slice()
   this.dataBox         = (options.dataBox || [-10,-10,10,10]).slice()
-  this.viewBox         = (options.viewBox ||
-    [0.125*(this.screenBox[2]-this.screenBox[0]),
-     0.125*(this.screenBox[3]-this.screenBox[1]),
-     0.875*(this.screenBox[2]-this.screenBox[0]),
-     0.875*(this.screenBox[3]-this.screenBox[1])]).slice()
-
   var screenBox = this.screenBox
-
-  this.pixelRatio      = options.pixelRatio || 1
+  this.setViewBox(options.viewBox ||
+    [0.125*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
+     0.125*(this.screenBox[3]-this.screenBox[1])/pixelRatio,
+     0.875*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
+     0.875*(this.screenBox[3]-this.screenBox[1])/pixelRatio])
 
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
@@ -16551,7 +18032,7 @@ proto.update = function(options) {
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
 
   this.titleCenter      = (options.titleCenter || [
-    0.5*(screenBox[0]+screenBox[2]),screenBox[3]-20]).slice()
+    0.5*(screenBox[0]+screenBox[2])/pixelRatio,(screenBox[3]-40)/pixelRatio]).slice()
   this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
   this.titleAngle       = options.titleAngle || 0
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
@@ -16637,7 +18118,8 @@ proto.removeObject = function(object) {
 
 function createGLPlot2D(options) {
   var gl = options.gl
-  var plot = new GLPlot2D(gl, null)
+  var pickBuffer = createPick(gl, [gl.drawingBufferWidth, gl.drawingBufferHeight])
+  var plot = new GLPlot2D(gl, pickBuffer)
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
   plot.line = createLine(plot)
@@ -16645,7 +18127,7 @@ function createGLPlot2D(options) {
   return plot
 }
 
-},{"./lib/grid":2,"./lib/line":3,"./lib/text":5}],301:[function(require,module,exports){
+},{"./lib/grid":2,"./lib/line":3,"./lib/text":5,"gl-select-static":180}],320:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -17978,7 +19460,7 @@ function decodeUtf8Char (str) {
   }
 }
 
-},{"base64-js":302,"ieee754":303,"is-array":304}],302:[function(require,module,exports){
+},{"base64-js":321,"ieee754":322,"is-array":323}],321:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -18104,7 +19586,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],303:[function(require,module,exports){
+},{}],322:[function(require,module,exports){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -18190,7 +19672,7 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],304:[function(require,module,exports){
+},{}],323:[function(require,module,exports){
 
 /**
  * isArray
@@ -18225,7 +19707,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],305:[function(require,module,exports){
+},{}],324:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
