@@ -17,6 +17,7 @@
     "canvas-fit": "^1.4.0",
     "gauss-random": "^1.0.1",
     "gl-buffer": "^2.1.2",
+    "gl-select-static": "^2.0.2",
     "gl-shader": "^4.0.5",
     "glslify": "^2.2.1",
     "mouse-change": "^1.2.1",

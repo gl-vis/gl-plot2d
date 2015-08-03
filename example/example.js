@@ -14,7 +14,6 @@ var gl = canvas.getContext('webgl')
 var POINT_COUNT = 1e7
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
-
 var dataBox = [-10,-10/aspect,10,10/aspect]
 
 function makeTicks(lo, hi) {
@@ -29,12 +28,12 @@ function makeTicks(lo, hi) {
 }
 
 var options = {
-  gl:      gl,
-  dataBox:         [-10, -10,  10,  10],
-  title:           '10 million points',
-  ticks:  [ makeTicks(-20,20), makeTicks(-20,20) ],
-  labels: ['x', 'y'],
-  pixelRatio:    +window.devicePixelRatio
+  gl:             gl,
+  dataBox:        dataBox,
+  title:          '10 million points',
+  ticks:          [ makeTicks(-20,20), makeTicks(-20,20) ],
+  labels:         ['x', 'y'],
+  pixelRatio:     +window.devicePixelRatio
 }
 
 var plot = createPlot(options)
@@ -53,17 +52,27 @@ plot.addObject(scatter)
 
 var lastX = 0, lastY = 0
 mouseChange(function(buttons, x, y) {
+  y = window.innerHeight - y
   x *= plot.pixelRatio
   y *= plot.pixelRatio
 
   if(buttons & 1) {
     var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
-    var dy = (y - lastY) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
+    var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
 
     dataBox[0] += dx
     dataBox[1] += dy
     dataBox[2] += dx
     dataBox[3] += dy
+
+    plot.setDataBox(dataBox)
+  } else {
+    var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
+    if(result) {
+      plot.setSpike(result.dataCoord[0], result.dataCoord[1])
+    } else {
+      plot.setSpike()
+    }
   }
   lastX = x
   lastY = y
@@ -80,14 +89,13 @@ mouseWheel(function(dx, dy, dz) {
   dataBox[2] = (dataBox[2] - cx) * scale + cx
   dataBox[3] = (dataBox[3] - cy) * scale + cy
 
+  plot.setDataBox(dataBox)
+
   return true
 })
 
 function render() {
   requestAnimationFrame(render)
-  plot.screenBox[2] = gl.drawingBufferWidth
-  plot.screenBox[3] = gl.drawingBufferHeight
-  plot.dataBox = dataBox
   plot.draw()
 }
 
