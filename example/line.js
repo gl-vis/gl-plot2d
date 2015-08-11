@@ -75,6 +75,7 @@ mouseChange(function(buttons, x, y) {
       plot.setSpike()
     }
   }
+
   lastX = x
   lastY = y
 })
