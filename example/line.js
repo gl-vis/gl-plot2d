@@ -11,7 +11,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 100
+var POINT_COUNT = 1e6
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -75,6 +75,7 @@ mouseChange(function(buttons, x, y) {
       plot.setSpike()
     }
   }
+
   lastX = x
   lastY = y
 })
