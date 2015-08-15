@@ -11,7 +11,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e7
+var POINT_COUNT = 1e3
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -45,7 +45,8 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 
 var scatter = createScatter(plot, {
   positions: positions,
-  size: 12
+  size: 12,
+  color: [1,0,0,0.1]
 })
 
 plot.addObject(scatter)

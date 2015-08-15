@@ -7,6 +7,7 @@ var createPick = require('gl-select-static')
 var createGrid = require('./lib/grid')
 var createText = require('./lib/text')
 var createLine = require('./lib/line')
+var createBox  = require('./lib/box')
 
 function GLPlot2D(gl, pickBuffer) {
   this.gl               = gl
@@ -77,6 +78,7 @@ function GLPlot2D(gl, pickBuffer) {
   this.grid             = null
   this.text             = null
   this.line             = null
+  this.box              = null
   this.objects          = []
   this.overlays         = []
 
@@ -148,8 +150,8 @@ return function() {
 
   //Configure premultiplied alpha blending
   gl.enable(gl.BLEND)
-  gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-  gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+  gl.blendEquation(gl.FUNC_ADD, gl.FUNC_ADD);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
   //Draw border
   gl.scissor(
@@ -313,7 +315,11 @@ return function() {
     text.drawTitle()
   }
 
-  //TODO: Draw other overlay elements (select boxes, etc.)
+  //Draw other overlay elements (select boxes, etc.)
+  var overlays = this.overlays
+  for(var i=0; i<overlays.length; ++i) {
+    overlays[i].draw()
+  }
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
@@ -529,7 +535,29 @@ proto.addObject = function(object) {
 }
 
 proto.removeObject = function(object) {
-  this.objects.push(object)
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    if(objects[i] === object) {
+      objects.splice(i,1)
+      break
+    }
+  }
+  this.setDirty()
+}
+
+proto.addOverlay = function(object) {
+  this.overlays.push(overlay)
+  this.setDirty()
+}
+
+proto.removeObject = function(object) {
+  var objects = this.overlays
+  for(var i=0; i<objects.length; ++i) {
+    if(objects[i] === object) {
+      objects.splice(i,1)
+      break
+    }
+  }
   this.setDirty()
 }
 
@@ -540,6 +568,7 @@ function createGLPlot2D(options) {
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
   plot.line = createLine(plot)
+  plot.box  = createBox(plot)
   plot.update(options)
   return plot
 }
