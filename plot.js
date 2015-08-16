@@ -90,12 +90,18 @@ function GLPlot2D(gl, pickBuffer) {
   this.pickRadius   = 10
   this._pickTimeout = null
   this._drawPick    = this.drawPick.bind(this)
+
+  this._depthCounter = 0
 }
 
 var proto = GLPlot2D.prototype
 
 proto.setDirty = function() {
   this.dirty = this.pickDirty = true
+}
+
+proto.nextDepthValue = function() {
+  return (this._depthCounter++) / 65536.0
 }
 
 proto.setSpike = function(x, y) {
@@ -126,6 +132,8 @@ return function() {
   var text       = this.text
   var objects    = this.objects
 
+  this._depthCounter = 0
+
   if(this.pickDirty) {
     if(this._pickTimeout) {
       clearTimeout(this._pickTimeout)
@@ -146,6 +154,7 @@ return function() {
 
   //Turn off depth buffer
   gl.disable(gl.DEPTH_TEST)
+  gl.depthFunc(gl.LESS_THAN)
   gl.depthMask(false)
 
   //Configure premultiplied alpha blending
@@ -546,7 +555,7 @@ proto.removeObject = function(object) {
 }
 
 proto.addOverlay = function(object) {
-  this.overlays.push(overlay)
+  this.overlays.push(object)
   this.setDirty()
 }
 

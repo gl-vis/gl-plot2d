@@ -3,6 +3,7 @@ var mouseWheel = require('mouse-wheel')
 var mouseChange = require('mouse-change')
 var gaussRandom = require('gauss-random')
 var createScatter = require('gl-scatter2d')
+var createSelectBox = require('gl-select-box')
 var createPlot = require('../plot')
 
 var canvas = document.createElement('canvas')
@@ -11,7 +12,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e3
+var POINT_COUNT = 1e7
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -38,6 +39,16 @@ var options = {
 
 var plot = createPlot(options)
 
+var selectBox = createSelectBox(plot, {
+  innerFill: false,
+  outerFill: true
+})
+
+plot.addOverlay(selectBox)
+
+selectBox.enabled = false
+
+
 var positions = new Float32Array(2 * POINT_COUNT)
 for(var i=0; i<2*POINT_COUNT; ++i) {
   positions[i] = gaussRandom()
@@ -46,27 +57,45 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 var scatter = createScatter(plot, {
   positions: positions,
   size: 12,
-  color: [1,0,0,0.1]
+  color: [1,0,0,1]
 })
 
 plot.addObject(scatter)
 
 var lastX = 0, lastY = 0
-mouseChange(function(buttons, x, y) {
+var boxStart = [0,0]
+var boxEnd   = [0,0]
+var boxEnabled = false
+mouseChange(function(buttons, x, y, mods) {
   y = window.innerHeight - y
   x *= plot.pixelRatio
   y *= plot.pixelRatio
 
+
   if(buttons & 1) {
-    var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
-    var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
+    if(mods.shift) {
+      var dataX = (x - plot.viewBox[0]) / (plot.viewBox[2]-plot.viewBox[0]) * (dataBox[2] - dataBox[0]) + dataBox[0]
+      var dataY = (y - plot.viewBox[1]) / (plot.viewBox[3]-plot.viewBox[1]) * (dataBox[3] - dataBox[1]) + dataBox[1]
+      if(!boxEnabled) {
+        boxStart[0] = dataX
+        boxStart[1] = dataY
+      }
+      boxEnd[0] = dataX
+      boxEnd[1] = dataY
+      boxEnabled = true
+      plot.setSpike()
+    } else {
+      var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
+      var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
 
-    dataBox[0] += dx
-    dataBox[1] += dy
-    dataBox[2] += dx
-    dataBox[3] += dy
+      dataBox[0] += dx
+      dataBox[1] += dy
+      dataBox[2] += dx
+      dataBox[3] += dy
 
-    plot.setDataBox(dataBox)
+      plot.setDataBox(dataBox)
+      plot.setSpike()
+    }
   } else {
     var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
     if(result) {
@@ -75,6 +104,29 @@ mouseChange(function(buttons, x, y) {
       plot.setSpike()
     }
   }
+
+  if(boxEnabled) {
+    selectBox.enabled = true
+    selectBox.selectBox = [
+      Math.min(boxStart[0], boxEnd[0]),
+      Math.min(boxStart[1], boxEnd[1]),
+      Math.max(boxStart[0], boxEnd[0]),
+      Math.max(boxStart[1], boxEnd[1])
+    ]
+    plot.setDirty()
+    if(!((buttons&1) && mods.shift)) {
+      selectBox.enabled = false
+      dataBox = [
+        Math.min(boxStart[0], boxEnd[0]),
+        Math.min(boxStart[1], boxEnd[1]),
+        Math.max(boxStart[0], boxEnd[0]),
+        Math.max(boxStart[1], boxEnd[1])
+      ]
+      plot.setDataBox(dataBox)
+      boxEnabled = false
+    }
+  }
+
   lastX = x
   lastY = y
 })

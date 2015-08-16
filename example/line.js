@@ -11,7 +11,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e6
+var POINT_COUNT = 1e2
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -46,6 +46,12 @@ for(var i=0; i<2*POINT_COUNT; i+=2) {
 
 var line = createLine(plot, {
   positions: positions,
+  fill: [false, false, true, false],
+  fillColor: [
+    [0,0,1,0.5],
+    [0,0,1,0.5],
+    [0,0,1,0.5],
+    [0,0,1,0.5]],
   //positions: [-10,2,3,-3,2,10],
   width: 4
 })
