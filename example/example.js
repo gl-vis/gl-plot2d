@@ -12,7 +12,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e7
+var POINT_COUNT = 1e4
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -34,7 +34,9 @@ var options = {
   title:          '10 million points',
   ticks:          [ makeTicks(-20,20), makeTicks(-20,20) ],
   labels:         ['x', 'y'],
-  pixelRatio:     +window.devicePixelRatio
+  pixelRatio:     +window.devicePixelRatio,
+  tickMarkWidth:  [2,2,2,2],
+  tickMarkLength: [10,10,10,10]
 }
 
 var plot = createPlot(options)

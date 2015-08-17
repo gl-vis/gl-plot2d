@@ -24,6 +24,7 @@ function GLPlot2D(gl, pickBuffer) {
 
   this.pixelRatio       = 1
 
+
   this.tickMarkLength   = [0,0,0,0]
   this.tickMarkWidth    = [0,0,0,0]
   this.tickMarkColor    = [[0,0,0,1],
@@ -154,7 +155,7 @@ return function() {
 
   //Turn off depth buffer
   gl.disable(gl.DEPTH_TEST)
-  gl.depthFunc(gl.LESS_THAN)
+  gl.depthFunc(gl.LESS)
   gl.depthMask(false)
 
   //Configure premultiplied alpha blending
@@ -244,7 +245,8 @@ return function() {
     screenBox[2]-screenBox[0],
     screenBox[3]-screenBox[1])
 
-  //TODO: Draw tick marks
+  //Draw tick marks
+  this.grid.drawTickMarks()
 
   //Draw line elements
   line.bind()
@@ -572,7 +574,8 @@ proto.removeObject = function(object) {
 
 function createGLPlot2D(options) {
   var gl = options.gl
-  var pickBuffer = createPick(gl, [gl.drawingBufferWidth, gl.drawingBufferHeight])
+  var pickBuffer = createPick(gl, [
+    gl.drawingBufferWidth, gl.drawingBufferHeight])
   var plot = new GLPlot2D(gl, pickBuffer)
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
