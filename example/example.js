@@ -12,7 +12,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e7
+var POINT_COUNT = 1e8
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -31,12 +31,12 @@ function makeTicks(lo, hi) {
 var options = {
   gl:             gl,
   dataBox:        dataBox,
-  title:          '10 million points',
+  title:          '100 million points',
   ticks:          [ makeTicks(-20,20), makeTicks(-20,20) ],
   labels:         ['x', 'y'],
   pixelRatio:     +window.devicePixelRatio,
   tickMarkWidth:  [2,2,2,2],
-  tickMarkLength: [10,10,10,10]
+  tickMarkLength: [6,6,6,6]
 }
 
 var plot = createPlot(options)
@@ -58,8 +58,8 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 
 var scatter = createScatter(plot, {
   positions: positions,
-  size: 12,
-  color: [1,0,0,1]
+  size: 7,
+  color: [0.3,0.5,0.8,1]
 })
 
 plot.addObject(scatter)
@@ -72,7 +72,6 @@ mouseChange(function(buttons, x, y, mods) {
   y = window.innerHeight - y
   x *= plot.pixelRatio
   y *= plot.pixelRatio
-
 
   if(buttons & 1) {
     if(mods.shift) {
