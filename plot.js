@@ -7,6 +7,7 @@ var createPick = require('gl-select-static')
 var createGrid = require('./lib/grid')
 var createText = require('./lib/text')
 var createLine = require('./lib/line')
+var createBox  = require('./lib/box')
 
 function GLPlot2D(gl, pickBuffer) {
   this.gl               = gl
@@ -22,6 +23,7 @@ function GLPlot2D(gl, pickBuffer) {
                            [0,0,0,1]]
 
   this.pixelRatio       = 1
+
 
   this.tickMarkLength   = [0,0,0,0]
   this.tickMarkWidth    = [0,0,0,0]
@@ -77,6 +79,7 @@ function GLPlot2D(gl, pickBuffer) {
   this.grid             = null
   this.text             = null
   this.line             = null
+  this.box              = null
   this.objects          = []
   this.overlays         = []
 
@@ -88,12 +91,18 @@ function GLPlot2D(gl, pickBuffer) {
   this.pickRadius   = 10
   this._pickTimeout = null
   this._drawPick    = this.drawPick.bind(this)
+
+  this._depthCounter = 0
 }
 
 var proto = GLPlot2D.prototype
 
 proto.setDirty = function() {
   this.dirty = this.pickDirty = true
+}
+
+proto.nextDepthValue = function() {
+  return (this._depthCounter++) / 65536.0
 }
 
 proto.setSpike = function(x, y) {
@@ -124,6 +133,8 @@ return function() {
   var text       = this.text
   var objects    = this.objects
 
+  this._depthCounter = 0
+
   if(this.pickDirty) {
     if(this._pickTimeout) {
       clearTimeout(this._pickTimeout)
@@ -144,12 +155,13 @@ return function() {
 
   //Turn off depth buffer
   gl.disable(gl.DEPTH_TEST)
+  gl.depthFunc(gl.LESS)
   gl.depthMask(false)
 
   //Configure premultiplied alpha blending
   gl.enable(gl.BLEND)
-  gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-  gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
+  gl.blendEquation(gl.FUNC_ADD, gl.FUNC_ADD);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
   //Draw border
   gl.scissor(
@@ -233,7 +245,8 @@ return function() {
     screenBox[2]-screenBox[0],
     screenBox[3]-screenBox[1])
 
-  //TODO: Draw tick marks
+  //Draw tick marks
+  this.grid.drawTickMarks()
 
   //Draw line elements
   line.bind()
@@ -313,7 +326,11 @@ return function() {
     text.drawTitle()
   }
 
-  //TODO: Draw other overlay elements (select boxes, etc.)
+  //Draw other overlay elements (select boxes, etc.)
+  var overlays = this.overlays
+  for(var i=0; i<overlays.length; ++i) {
+    overlays[i].draw()
+  }
 
   //Turn off scissor test
   gl.disable(gl.SCISSOR_TEST)
@@ -529,17 +546,41 @@ proto.addObject = function(object) {
 }
 
 proto.removeObject = function(object) {
-  this.objects.push(object)
+  var objects = this.objects
+  for(var i=0; i<objects.length; ++i) {
+    if(objects[i] === object) {
+      objects.splice(i,1)
+      break
+    }
+  }
+  this.setDirty()
+}
+
+proto.addOverlay = function(object) {
+  this.overlays.push(object)
+  this.setDirty()
+}
+
+proto.removeObject = function(object) {
+  var objects = this.overlays
+  for(var i=0; i<objects.length; ++i) {
+    if(objects[i] === object) {
+      objects.splice(i,1)
+      break
+    }
+  }
   this.setDirty()
 }
 
 function createGLPlot2D(options) {
   var gl = options.gl
-  var pickBuffer = createPick(gl, [gl.drawingBufferWidth, gl.drawingBufferHeight])
+  var pickBuffer = createPick(gl, [
+    gl.drawingBufferWidth, gl.drawingBufferHeight])
   var plot = new GLPlot2D(gl, pickBuffer)
   plot.grid = createGrid(plot)
   plot.text = createText(plot)
   plot.line = createLine(plot)
+  plot.box  = createBox(plot)
   plot.update(options)
   return plot
 }

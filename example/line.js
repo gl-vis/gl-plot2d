@@ -40,12 +40,21 @@ var plot = createPlot(options)
 
 var positions = new Float32Array(2 * POINT_COUNT)
 for(var i=0; i<2*POINT_COUNT; i+=2) {
-  positions[i]   = (i/POINT_COUNT)*20.0-10.0
+  positions[i]   = (i/POINT_COUNT)*20.0-20.0
   positions[i+1] = gaussRandom()
 }
 
 var line = createLine(plot, {
   positions: positions,
+  /*
+  fill: [false, true, false, false],
+  fillColor: [
+    [0,0,1,0.5],
+    [0,0,1,0.5],
+    [0,0,1,0.5],
+    [0,0,1,0.5]],
+  */
+  //positions: [-10,2,3,-3,2,10],
   width: 1
 })
 
@@ -58,8 +67,8 @@ mouseChange(function(buttons, x, y) {
   y *= plot.pixelRatio
 
   if(buttons & 1) {
-    var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
-    var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])
+    var dx = (lastX - x) * (dataBox[2]-dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
+    var dy = (lastY - y) * (dataBox[3]-dataBox[1]) / (plot.viewBox[3]-plot.viewBox[1])
 
     dataBox[0] += dx
     dataBox[1] += dy
