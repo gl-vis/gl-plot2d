@@ -11,7 +11,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e6
+var POINT_COUNT = 10
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -44,6 +44,8 @@ for(var i=0; i<2*POINT_COUNT; i+=2) {
   positions[i+1] = gaussRandom()
 }
 
+positions[11] = 1e10
+
 var line = createLine(plot, {
   positions: positions,
   /*
@@ -55,7 +57,7 @@ var line = createLine(plot, {
     [0,0,1,0.5]],
   */
   //positions: [-10,2,3,-3,2,10],
-  width: 1
+  width: 10
 })
 
 plot.addObject(line)
