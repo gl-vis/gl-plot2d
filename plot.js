@@ -289,44 +289,6 @@ return function() {
     text.drawTitle()
   }
 
-
-  //Draw spikes
-  var spikeEnable = this.spikeEnable
-  var spikeWidth  = this.spikeWidth
-  var spikeColor  = this.spikeColor
-  var spikeCenter = this.spikeCenter
-  if(dataBox[0] <= spikeCenter[0] && spikeCenter[0] <= dataBox[2] &&
-     dataBox[1] <= spikeCenter[1] && spikeCenter[1] <= dataBox[3]) {
-
-    var centerX = viewPixels[0] + (spikeCenter[0] - dataBox[0]) / (dataBox[2] - dataBox[0]) * (viewPixels[2] - viewPixels[0])
-    var centerY = viewPixels[1] + (spikeCenter[1] - dataBox[1]) / (dataBox[3] - dataBox[1]) * (viewPixels[3] - viewPixels[1])
-
-    if(spikeEnable[0]) {
-     line.drawLine(
-       centerX, centerY,
-       viewPixels[0], centerY,
-       spikeWidth[0], spikeColor[0])
-    }
-    if(spikeEnable[1]) {
-     line.drawLine(
-       centerX, centerY,
-       centerX, viewPixels[1],
-       spikeWidth[1], spikeColor[1])
-    }
-    if(spikeEnable[2]) {
-      line.drawLine(
-        centerX, centerY,
-        viewPixels[2], centerY,
-        spikeWidth[2], spikeColor[2])
-    }
-    if(spikeEnable[3]) {
-      line.drawLine(
-        centerX, centerY,
-        centerX, viewPixels[3],
-        spikeWidth[3], spikeColor[3])
-    }
-  }
-
   //Draw other overlay elements (select boxes, etc.)
   var overlays = this.overlays
   for(var i=0; i<overlays.length; ++i) {
@@ -508,7 +470,15 @@ proto.update = function(options) {
                            [0,0,0,1],
                            [0,0,0,1]])
 
-  this.spikeCenter     = [Infinity,Infinity]
+
+  this.spikeEnable     = (options.spikeEnable || [true, true, false, false]).slice()
+  this.spikeWidth      = (options.spikeWidth || [1,1,1,1]).slice()
+  this.spikeColor      = deepClone(options.spikeColor ||
+                            [[0,0,0,1],
+                             [0,0,0,1],
+                             [0,0,0,1],
+                             [0,0,0,1]])
+  this.spikeCenter     = (options.spikeCenter || [Infinity,Infinity]).slice()
 
   var ticks = options.ticks || [ [], [] ]
 

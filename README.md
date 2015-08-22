@@ -4,6 +4,8 @@ A WebGL based 2D rendering for large plots.
 
 ## Example
 
+Still messy here...
+
 ## Install
 
 With [npm](http://github.com/gl-vis/gl-plot2d),
@@ -49,76 +51,79 @@ Options can contain the following parameters,
 
 ##### Ticks
 
-The ticks for each
-
 | Property | Description | Default |
 |----------|-------------|---------|
-| `ticks` | See note above | `[[], []]` |
-| `tickEnable` |  | `[true, true, true, true]` |
-| `tickPad` |   |  `[15,15,15,15]` |
-| `tickAngle` |   | `[0,0,0,0]` |
-| `tickColor` |   | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
-| `tickMarkWidth` |    | `[0,0,0,0]` |
+| `ticks` | See note below | `[[], []]` |
+| `tickEnable` | Turn on display of ticks for a given axis | `[true, true, true, true]` |
+| `tickPad` | Distance between tick text and tick marks |  `[15,15,15,15]` |
+| `tickAngle` | Angle to draw ticks at | `[0,0,0,0]` |
+| `tickColor` | Color of ticks  | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
+| `tickMarkWidth` | Tick marks | `[0,0,0,0]` |
 | `tickMarkLength` |    | `[0,0,0,0]` |
+
+*Note:* Ticks are encoded as an array of objects, each with the following properties:
+
+* `x` The data coordinate of the tick
+* `text` The text associated to the tict mark
+* `font` The font for the text
+* `size` The font size for the tick
 
 ##### Labels
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `labels` |   | `['x', 'y']` |
-| `labelEnable` | | `[true, true, true, true]` |
-| `labelAngle` |  | `[0,Math.PI/2,0,3.0*Math.PI/2]` |
-| `labelPad` | | `[15,15,15,15]` |
-| `labelSize` |  | `[12, 12]` |
-| `labelFont` |   | `['sans-serif', 'sans-serif']` |
-| `labelColor` |  | `[[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]` |
+| `labels` | The label text for each axis  | `['x', 'y']` |
+| `labelEnable` | Turns on/off rendering for the labels on the left,bottom,top,right | `[true, true, true, true]` |
+| `labelAngle` | Angle to draw label text | `[0,Math.PI/2,0,3.0*Math.PI/2]` |
+| `labelPad` | Padding for labels in pixel coordinates | `[15,15,15,15]` |
+| `labelSize` | Size of labels in pixels | `[12, 12]` |
+| `labelFont` | Font for labels | `['sans-serif', 'sans-serif']` |
+| `labelColor` | Color of labels | `[[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]` |
 
 ##### Title
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `title` |   | `''` |
-| `titleEnable` | | `true` |
-| `titleCenter` |  | `[0.5*(viewBox[0]+viewBox[2]), viewBox[3] - 40]` |
-| `titleAngle` | | `0` |
-| `titleColor` | | `[0,0,0,1]` |
-| `titleFont` |   | `'sans-serif'` |
-| `titleFont` |   | `'sans-serif'` |
-| `titleSize` |   | `18` |
+| `title` | Title text | `''` |
+| `titleEnable` | Toggles title rendering | `true` |
+| `titleCenter` | Pixel coordinates for center of title | `[0.5*(viewBox[0]+viewBox[2]), viewBox[3] - 40]` |
+| `titleAngle` | Angle to draw title text | `0` |
+| `titleColor` | Color of title | `[0,0,0,1]` |
+| `titleFont` | Title font | `'sans-serif'` |
+| `titleSize` | Title font size | `18` |
 
 ##### Grid lines
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `gridLineEnable` |   | `[true, true]` |
-| `gridLineColor` |  | `[[0,0,0,0.5], [0,0,0,0.5]]` |
-| `gridLineWidth` |  | `[1, 1]` |
-| `zeroLineEnable` |  | `[true, true]` |
-| `zeroLineWidth` |  | `[2, 2]` |
-| `zeroLineColor` |  | `[[0,0,0,1], [0,0,0,1]]` |
-
-##### Spikes
-
-| Property | Description | Default |
-|----------|-------------|---------|
-|
+| `gridLineEnable` | Turns on grid lines per axis | `[true, true]` |
+| `gridLineColor` | Grid line color | `[[0,0,0,0.5], [0,0,0,0.5]]` |
+| `gridLineWidth` | Width of grid lines | `[1, 1]` |
+| `zeroLineEnable` | Toggle rendering of zero line | `[true, true]` |
+| `zeroLineWidth` | Width of zero line in pixels | `[2, 2]` |
+| `zeroLineColor` | Color of zero line | `[[0,0,0,1], [0,0,0,1]]` |
 
 ### Methods
 
 #### `plot.update(options)`
+Updates the properties of the plot.
+
+* `options` is an option structure, as described in the constructor
 
 #### `plot.setScreenBox(box)`
+Changes the screen box of the plot
 
 #### `plot.setViewBox(box)`
+Changes the view box
 
 #### `plot.setDataBox(box)`
-
-#### `plot.setSpike(x, y)`
+Changes the view box
 
 #### `plot.draw()`
+Redraws the plot.  Call this once per `requestAnimationFrame()`
 
 #### `plot.dispose()`
-
+Destroy plot and release all associated resources
 
 # License
 (c) Mikola Lysenko.  MIT License
