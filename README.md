@@ -33,15 +33,19 @@ Options can contain the following parameters,
 | `viewBox` | Pixel coordinates where the plot is drawn |
 | `dataBox` | Data coordinates for the view of the plot |
 
+*Note:*  Coordinates for `screenBox, viewBox, dataBox,` etc. are given by 4-tuples of bounding box coordinates in the form `[xmin, ymin, xmax, ymax]`.
+
 ##### Border and background colors
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `borderColor` | | `` |
-| `backgroundColor` | | `` |
-| `borderLineEnable` | | `[true,true,true,true]` |
-| `borderLineWidth` | | `[2,2,2,2]` |
-| `borderLineColor` | | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]` |
+| `borderColor` | Border color as a normalized RGBA tuple | `[0,0,0,0]` |
+| `backgroundColor` | Background color | `[0,0,0,0]` |
+| `borderLineEnable` | Toggle drawing lines for left,bottom,right,top of border | `[true,true,true,true]` |
+| `borderLineWidth` | Width of border lines | `[2,2,2,2]` |
+| `borderLineColor` | Color of border lines | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]` |
+
+*Note:* For properties which are specified per-screen direction like `borderLineEnable` etc., the components are always arranged in the order `left,bottom,right,top`.
 
 ##### Ticks
 
