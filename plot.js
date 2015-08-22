@@ -93,18 +93,12 @@ proto.setDirty = function() {
   this.dirty = this.pickDirty = true
 }
 
-proto.nextDepthValue = function() {
-  return (this._depthCounter++) / 65536.0
+proto.setOverlayDirty = function() {
+  this.dirty = true
 }
 
-proto.setSpike = function(x, y) {
-  x = isNaN(+x) ? Infinity : +x
-  y = isNaN(+y) ? Infinity : +y
-  this.dirty = this.dirty ||
-               this.spikeCenter[0] !== x ||
-               this.spikeCenter[1] !== y
-  this.spikeCenter[0] = x
-  this.spikeCenter[1] = y
+proto.nextDepthValue = function() {
+  return (this._depthCounter++) / 65536.0
 }
 
 function lerp(a, b, t) {
@@ -536,7 +530,7 @@ proto.removeObject = function(object) {
 proto.addOverlay = function(object) {
   if(this.overlays.indexOf(object) < 0) {
     this.overlays.push(object)
-    this.setDirty()
+    this.setOverlayDirty()
   }
 }
 
@@ -545,7 +539,7 @@ proto.removeObject = function(object) {
   for(var i=0; i<objects.length; ++i) {
     if(objects[i] === object) {
       objects.splice(i,1)
-      this.setDirty()
+      this.setOverlayDirty()
       break
     }
   }

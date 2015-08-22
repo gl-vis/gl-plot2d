@@ -4,6 +4,7 @@ var mouseChange = require('mouse-change')
 var gaussRandom = require('gauss-random')
 var createScatter = require('gl-scatter2d')
 var createSelectBox = require('gl-select-box')
+var createSpikes = require('gl-spikes2d')
 var createPlot = require('../plot')
 
 var canvas = document.createElement('canvas')
@@ -12,7 +13,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e6
+var POINT_COUNT = 1e4
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -45,11 +46,9 @@ var selectBox = createSelectBox(plot, {
   innerFill: false,
   outerFill: true
 })
-
-plot.addOverlay(selectBox)
-
 selectBox.enabled = false
 
+var spikes = createSpikes(plot)
 
 var positions = new Float32Array(2 * POINT_COUNT)
 for(var i=0; i<2*POINT_COUNT; ++i) {
@@ -61,8 +60,6 @@ var scatter = createScatter(plot, {
   size: 7,
   color: [0.3,0.5,0.8,1]
 })
-
-plot.addObject(scatter)
 
 var lastX = 0, lastY = 0
 var boxStart = [0,0]
@@ -95,14 +92,14 @@ mouseChange(function(buttons, x, y, mods) {
       dataBox[3] += dy
 
       plot.setDataBox(dataBox)
-      plot.setSpike()
+      spikes.update()
     }
   } else {
     var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
     if(result) {
-      plot.setSpike(result.dataCoord[0], result.dataCoord[1])
+      spikes.update({center: result.dataCoord})
     } else {
-      plot.setSpike()
+      spikes.update()
     }
   }
 
