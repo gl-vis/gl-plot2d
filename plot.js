@@ -394,7 +394,9 @@ proto.update = function(options) {
   options = options || {}
 
   var gl = this.gl
+
   this.pixelRatio      = options.pixelRatio || 1
+  
   var pixelRatio       = this.pixelRatio
   this.pickPixelRatio  = Math.max(pixelRatio, 1)
 
