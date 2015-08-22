@@ -81,7 +81,7 @@ mouseChange(function(buttons, x, y, mods) {
       boxEnd[0] = dataX
       boxEnd[1] = dataY
       boxEnabled = true
-      plot.setSpike()
+      spikes.update()
     } else {
       var dx = (lastX - x) * (dataBox[2] - dataBox[0]) / (plot.viewBox[2]-plot.viewBox[0])
       var dy = (lastY - y) * (dataBox[3] - dataBox[1]) / (plot.viewBox[3] - plot.viewBox[1])

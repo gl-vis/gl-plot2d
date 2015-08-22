@@ -24,6 +24,9 @@
     "camera-2d": "^1.0.0",
     "canvas-fit": "^1.4.0",
     "gauss-random": "^1.0.1",
+    "gl-scatter2d": "^1.0.0",
+    "gl-select-box": "^1.0.0",
+    "gl-spikes2d": "^1.0.0",
     "mouse-change": "^1.2.1",
     "mouse-wheel": "^1.0.2"
   },
