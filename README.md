@@ -23,25 +23,30 @@ Constructs a new `gl-plot2d` object.
 
 Options can contain the following parameters,
 
+##### Required properties
+
+| Property | Description |
+|----------|-------------|
+| `gl`     |  |
+
 ##### Coordinate bounds
 
-* `screenBox`
-* `viewBox`
-* `dataBox`
+| Property | Description | Default |
+|----------|-------------|---------|
+| `pixelRatio` |  | `1` |
+| `screenBox` | | `[0,0,gl.drawingBufferWidth/pixelRatio,gl.drawingBufferHeight/pixelRatio]` |
+| `viewBox` | | `[0,0,0,0]` |
+| `dataBox` | | `[0,0,0,0]` |
 
 ##### Border and background colors
 
-* `borderColor`
-* `backgroundColor`
-
-this.borderLineEnable = (options.borderLineEnable ||
-                          [true,true,true,true]).slice()
-this.borderLineWidth  = (options.borderLineWidth || [2,2,2,2]).slice()
-this.borderLineColor  = deepClone(options.borderLineColor ||
-                        [[0,0,0,1],
-                         [0,0,0,1],
-                         [0,0,0,1],
-                         [0,0,0,1]])
+| Property | Description | Default |
+|----------|-------------|---------|
+| `borderColor` | | `` |
+| `backgroundColor` | | `` |
+| `borderLineEnable` | | `[true,true,true,true]` |
+| `borderLineWidth` | | `[2,2,2,2]` |
+| `borderLineColor` | | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]` |
 
 ##### Ticks
 
