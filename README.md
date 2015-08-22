@@ -50,12 +50,12 @@ Options can contain the following parameters,
 
 ##### Ticks
 
-A general note on ticks
+The ticks for each
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| `ticks` |   | `[[], []]` |
-| `tickEnable` |   | `[true, true, true, true]` |
+| `ticks` | See note above | `[[], []]` |
+| `tickEnable` |  | `[true, true, true, true]` |
 | `tickPad` |   |  `[15,15,15,15]` |
 | `tickAngle` |   | `[0,0,0,0]` |
 | `tickColor` |   | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
@@ -67,14 +67,22 @@ A general note on ticks
 | Property | Description | Default |
 |----------|-------------|---------|
 | `labels` |   | `['x', 'y']` |
-| `labelSize` |   | `[12, 12]` |
+| `labelEnable` | | `[true, true, true, true]` |
+| `labelAngle` |  | `[0,Math.PI/2,0,3.0*Math.PI/2]` |
+| `labelPad` | | `[15,15,15,15]` |
+| `labelSize` |  | `[12, 12]` |
 | `labelFont` |   | `['sans-serif', 'sans-serif']` |
+| `labelColor` |  | `[[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]` |
 
 ##### Title
 
 | Property | Description | Default |
 |----------|-------------|---------|
 | `title` |   | `''` |
+| `titleEnable` | | `true` |
+| `titleCenter` |  | `[0.5*(viewBox[0]+viewBox[2]), viewBox[3] - 40]` |
+| `titleAngle` | | `0` |
+| `titleColor` | | `[0,0,0,1]` |
 | `titleFont` |   | `'sans-serif'` |
 | `titleFont` |   | `'sans-serif'` |
 | `titleSize` |   | `18` |
@@ -89,6 +97,12 @@ A general note on ticks
 | `zeroLineEnable` |  | `[true, true]` |
 | `zeroLineWidth` |  | `[2, 2]` |
 | `zeroLineColor` |  | `[[0,0,0,1], [0,0,0,1]]` |
+
+##### Spikes
+
+| Property | Description | Default |
+|----------|-------------|---------|
+|
 
 ### Methods
 

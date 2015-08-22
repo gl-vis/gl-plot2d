@@ -463,7 +463,7 @@ proto.update = function(options) {
   var viewBox = this.viewBox
   var aspectRatio = (viewBox[2] - viewBox[0]) / (viewBox[3] - viewBox[1])
   this.setDataBox(options.dataBox || [-10, -10/aspectRatio, 10, 10/aspectRatio])
-  
+
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
 
@@ -481,7 +481,7 @@ proto.update = function(options) {
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
 
   this.titleCenter      = (options.titleCenter || [
-    0.5*(screenBox[0]+screenBox[2])/pixelRatio,(screenBox[3]-40)/pixelRatio]).slice()
+    0.5*(viewBox[0]+viewBox[2])/pixelRatio,(viewBox[3]-40)/pixelRatio]).slice()
   this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
   this.titleAngle       = options.titleAngle || 0
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
