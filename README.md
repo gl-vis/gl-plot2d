@@ -34,7 +34,11 @@ Options can contain the following parameters,
 | Property | Description | Default |
 |----------|-------------|---------|
 | `pixelRatio` | A scale factor which is applied to pixel coordinates | `1` |
-| `screenBox` | Bounds on the plot within the WebGL context | `[0,0,gl.drawingBufferWidth/pixelRatio,gl.drawingBufferHeight/pixelRatio]` |
+| `screenBox` | Bounds on the plot within the WebGL context | ```javascript
+[0, 0,
+gl.drawingBufferWidth/pixelRatio,
+gl.drawingBufferHeight/pixelRatio]
+``` |
 | `viewBox` | Pixel coordinates where the plot is drawn  | `[0,0,0,0]` |
 | `dataBox` | Data coordinates for the view of the plot | `[0,0,0,0]` |
 
