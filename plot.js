@@ -67,14 +67,6 @@ function GLPlot2D(gl, pickBuffer) {
                            [0,0,0,1],
                            [0,0,0,1]]
 
-  this.spikeEnable      = [true, true, false, false]
-  this.spikeWidth       = [1,1,1,1]
-  this.spikeColor       = [[0,0,0,1],
-                           [0,0,0,1],
-                           [0,0,0,1],
-                           [0,0,0,1]]
-  this.spikeCenter      = [0,0]
-
   //Drawing parameters
   this.grid             = null
   this.text             = null
@@ -469,16 +461,6 @@ proto.update = function(options) {
                            [0,0,0,1],
                            [0,0,0,1],
                            [0,0,0,1]])
-
-
-  this.spikeEnable     = (options.spikeEnable || [true, true, false, false]).slice()
-  this.spikeWidth      = (options.spikeWidth || [1,1,1,1]).slice()
-  this.spikeColor      = deepClone(options.spikeColor ||
-                            [[0,0,0,1],
-                             [0,0,0,1],
-                             [0,0,0,1],
-                             [0,0,0,1]])
-  this.spikeCenter     = (options.spikeCenter || [Infinity,Infinity]).slice()
 
   var ticks = options.ticks || [ [], [] ]
 
