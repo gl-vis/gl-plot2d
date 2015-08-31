@@ -1,8 +1,8 @@
 {
-  "name": "gl-axes2d",
+  "name": "gl-plot2d",
   "version": "1.0.0",
-  "description": "2D plot axes element",
-  "main": "axes2d.js",
+  "description": "2D webgl plots",
+  "main": "plot.js",
   "directories": {
     "example": "example"
   },
@@ -13,25 +13,29 @@
   },
   "dependencies": {
     "binary-search-bounds": "^2.0.3",
-    "camera-2d": "^1.0.0",
-    "canvas-fit": "^1.4.0",
-    "gauss-random": "^1.0.1",
     "gl-buffer": "^2.1.2",
     "gl-select-static": "^2.0.2",
     "gl-shader": "^4.0.5",
     "glsl-inverse": "^1.0.0",
     "glslify": "^2.2.1",
-    "mouse-change": "^1.2.1",
-    "mouse-wheel": "^1.0.2",
     "text-cache": "^1.0.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "camera-2d": "^1.0.0",
+    "canvas-fit": "^1.4.0",
+    "gauss-random": "^1.0.1",
+    "gl-scatter2d": "^1.0.0",
+    "gl-select-box": "^1.0.0",
+    "gl-spikes2d": "^1.0.0",
+    "mouse-change": "^1.2.1",
+    "mouse-wheel": "^1.0.2"
+  },
   "scripts": {
     "test": "tape test/*.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikolalysenko/gl-axes2d.git"
+    "url": "git+https://github.com/gl-vis/gl-plot2d.git"
   },
   "keywords": [
     "2d",
@@ -42,7 +46,7 @@
   "author": "Mikola Lysenko",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mikolalysenko/gl-axes2d/issues"
+    "url": "https://github.com/gl-vis/gl-plot2d/issues"
   },
-  "homepage": "https://github.com/mikolalysenko/gl-axes2d#readme"
+  "homepage": "https://github.com/gl-vis/gl-plot2d#readme"
 }

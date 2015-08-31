@@ -18,12 +18,30 @@ var POINT_COUNT = 1e4
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
 
-function makeTicks(lo, hi) {
+function makeTicks(lo, hi, step, precision) {
   var result = []
-  for(var i=lo; i<=hi; ++i) {
+  for(var i=lo, f=0; i<=hi; i+=step, f+=1) {
+
+    var text = ''
+    if(precision >= 0) {
+      text = Math.round(lo + f*step) + ''
+    } else {
+      var len = Math.abs(precision)
+      var num = (lo + f*step)
+      var text = Math.abs(Math.round(num/step)) + ''
+      while(text.length <= len) {
+        text = '0' + text
+      }
+      text = text.substr(0, text.length - len) + '.' +
+             text.substr(text.length - len)
+      if(num < 0) {
+        text = '-' + text
+      }
+    }
+
     result.push({
       x: i,
-      text: i + ''
+      text: text
     })
   }
   return result
@@ -33,14 +51,55 @@ var options = {
   gl:             gl,
   dataBox:        dataBox,
   title:          '100 million points',
-  ticks:          [ makeTicks(-20,20), makeTicks(-20,20) ],
+  ticks:          [ makeTicks(-100,100,1,0), makeTicks(-100,100,1,0) ],
   labels:         ['x', 'y'],
   pixelRatio:     +window.devicePixelRatio,
   tickMarkWidth:  [2,2,2,2],
-  tickMarkLength: [6,6,6,6]
+  tickMarkLength: [6,6,6,6],
+  tickPad:        [20,20,20,20],
+  borderLineEnable: [false, false, false, false]
 }
 
 var plot = createPlot(options)
+
+var lastXTickMarks = [0,0,0,0], lastYTickMarks = [0,0,0,0]
+var lastInputTime = Date.now()
+
+function computeTickSpan(lo, hi, tickMarks) {
+  var dist = hi - lo
+  var digits = Math.log10(hi - lo) - 0.5
+  var precision = Math.floor(digits)
+  var step = Math.pow(10, precision)
+
+  if(Math.abs(digits - tickMarks[0] - 0.5) <= 1 &&
+     tickMarks[2] <= lo &&
+     hi <= tickMarks[3]) {
+    return false
+  }
+
+  tickMarks[0] = precision
+  tickMarks[1] = step
+  tickMarks[2] = Math.floor(lo / (16*step)) * step * 16
+  tickMarks[3] = Math.ceil(hi  / (16*step) + 1) * step * 16
+
+  return true
+}
+
+function updateTicks() {
+  var needXUpdate = computeTickSpan(dataBox[0], dataBox[2], lastXTickMarks)
+  var needYUpdate = computeTickSpan(dataBox[1], dataBox[3], lastYTickMarks)
+
+  if(needXUpdate || needYUpdate) {
+
+    var precision = Math.min(lastXTickMarks[0], lastYTickMarks[0])
+    var step      = Math.min(lastXTickMarks[1], lastYTickMarks[1])
+
+    options.ticks[0] = makeTicks(lastXTickMarks[2], lastXTickMarks[3], step, precision)
+    options.ticks[1] = makeTicks(lastYTickMarks[2], lastYTickMarks[3], step, precision)
+    plot.update(options)
+  }
+}
+
 
 var selectBox = createSelectBox(plot, {
   innerFill: false,
@@ -58,7 +117,7 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 var scatter = createScatter(plot, {
   positions: positions,
   size: 7,
-  color: [0.3,0.5,0.8,1]
+  color: [0.3,0.5,0.8,0.5]
 })
 
 var lastX = 0, lastY = 0
@@ -93,6 +152,7 @@ mouseChange(function(buttons, x, y, mods) {
 
       plot.setDataBox(dataBox)
       spikes.update()
+      lastInputTime = Date.now()
     }
   } else {
     var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
@@ -142,12 +202,18 @@ mouseWheel(function(dx, dy, dz) {
 
   plot.setDataBox(dataBox)
 
+  lastInputTime = Date.now()
+
   return true
 })
 
 function render() {
   requestAnimationFrame(render)
   plot.draw()
+
+  if(Date.now() - lastInputTime > 500) {
+    updateTicks()
+  }
 }
 
 render()

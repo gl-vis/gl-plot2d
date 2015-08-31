@@ -67,14 +67,6 @@ function GLPlot2D(gl, pickBuffer) {
                            [0,0,0,1],
                            [0,0,0,1]]
 
-  this.spikeEnable      = [true, true, false, false]
-  this.spikeWidth       = [1,1,1,1]
-  this.spikeColor       = [[0,0,0,1],
-                           [0,0,0,1],
-                           [0,0,0,1],
-                           [0,0,0,1]]
-  this.spikeCenter      = [0,0]
-
   //Drawing parameters
   this.grid             = null
   this.text             = null
@@ -101,18 +93,12 @@ proto.setDirty = function() {
   this.dirty = this.pickDirty = true
 }
 
-proto.nextDepthValue = function() {
-  return (this._depthCounter++) / 65536.0
+proto.setOverlayDirty = function() {
+  this.dirty = true
 }
 
-proto.setSpike = function(x, y) {
-  x = isNaN(+x) ? Infinity : +x
-  y = isNaN(+y) ? Infinity : +y
-  this.dirty = this.dirty ||
-               this.spikeCenter[0] !== x ||
-               this.spikeCenter[1] !== y
-  this.spikeCenter[0] = x
-  this.spikeCenter[1] = y
+proto.nextDepthValue = function() {
+  return (this._depthCounter++) / 65536.0
 }
 
 function lerp(a, b, t) {
@@ -251,43 +237,6 @@ return function() {
   //Draw line elements
   line.bind()
 
-  //Draw spikes
-  var spikeEnable = this.spikeEnable
-  var spikeWidth  = this.spikeWidth
-  var spikeColor  = this.spikeColor
-  var spikeCenter = this.spikeCenter
-  if(dataBox[0] <= spikeCenter[0] && spikeCenter[0] <= dataBox[2] &&
-     dataBox[1] <= spikeCenter[1] && spikeCenter[1] <= dataBox[3]) {
-
-    var centerX = viewPixels[0] + (spikeCenter[0] - dataBox[0]) / (dataBox[2] - dataBox[0]) * (viewPixels[2] - viewPixels[0])
-    var centerY = viewPixels[1] + (spikeCenter[1] - dataBox[1]) / (dataBox[3] - dataBox[1]) * (viewPixels[3] - viewPixels[1])
-
-    if(spikeEnable[0]) {
-     line.drawLine(
-       centerX, centerY,
-       viewPixels[0], centerY,
-       spikeWidth[0], spikeColor[0])
-    }
-    if(spikeEnable[1]) {
-     line.drawLine(
-       centerX, centerY,
-       centerX, viewPixels[1],
-       spikeWidth[1], spikeColor[1])
-    }
-    if(spikeEnable[2]) {
-      line.drawLine(
-        centerX, centerY,
-        viewPixels[2], centerY,
-        spikeWidth[2], spikeColor[2])
-    }
-    if(spikeEnable[3]) {
-      line.drawLine(
-        centerX, centerY,
-        centerX, viewPixels[3],
-        spikeWidth[3], spikeColor[3])
-    }
-  }
-
   //Draw border lines
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
@@ -402,6 +351,14 @@ function compareTicks(a, b) {
 }
 
 proto.setScreenBox = function(nbox) {
+  var screenBox = this.screenBox
+  var pixelRatio = this.pixelRatio
+
+  screenBox[0] = Math.round(nbox[0] * pixelRatio) | 0
+  screenBox[1] = Math.round(nbox[1] * pixelRatio) | 0
+  screenBox[2] = Math.round(nbox[2] * pixelRatio) | 0
+  screenBox[3] = Math.round(nbox[3] * pixelRatio) | 0
+
   this.setDirty()
 }
 
@@ -419,6 +376,7 @@ proto.setDataBox = function(nbox) {
 proto.setViewBox = function(nbox) {
   var pixelRatio = this.pixelRatio
   var viewBox = this.viewBox
+
   viewBox[0] = Math.round(nbox[0] * pixelRatio)|0
   viewBox[1] = Math.round(nbox[1] * pixelRatio)|0
   viewBox[2] = Math.round(nbox[2] * pixelRatio)|0
@@ -436,18 +394,25 @@ proto.update = function(options) {
   options = options || {}
 
   var gl = this.gl
+
   this.pixelRatio      = options.pixelRatio || 1
+
   var pixelRatio       = this.pixelRatio
   this.pickPixelRatio  = Math.max(pixelRatio, 1)
-  this.screenBox       = (options.screenBox ||
-    [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]).slice()
-  this.dataBox         = (options.dataBox || [-10,-10,10,10]).slice()
+
+  this.setScreenBox(options.screenBox ||
+    [0, 0, gl.drawingBufferWidth/pixelRatio, gl.drawingBufferHeight/pixelRatio])
+
   var screenBox = this.screenBox
   this.setViewBox(options.viewBox ||
     [0.125*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
      0.125*(this.screenBox[3]-this.screenBox[1])/pixelRatio,
      0.875*(this.screenBox[2]-this.screenBox[0])/pixelRatio,
      0.875*(this.screenBox[3]-this.screenBox[1])/pixelRatio])
+
+  var viewBox = this.viewBox
+  var aspectRatio = (viewBox[2] - viewBox[0]) / (viewBox[3] - viewBox[1])
+  this.setDataBox(options.dataBox || [-10, -10/aspectRatio, 10, 10/aspectRatio])
 
   this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
@@ -466,7 +431,7 @@ proto.update = function(options) {
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
 
   this.titleCenter      = (options.titleCenter || [
-    0.5*(screenBox[0]+screenBox[2])/pixelRatio,(screenBox[3]-40)/pixelRatio]).slice()
+    0.5*(viewBox[0]+viewBox[2])/pixelRatio,(viewBox[3]+120)/pixelRatio]).slice()
   this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
   this.titleAngle       = options.titleAngle || 0
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
@@ -538,11 +503,19 @@ proto.dispose = function() {
     this.objects[i].dispose()
   }
   this.objects.length = 0
+  for(var i=this.overlays.length-1; i>=0; --i) {
+    this.overlays[i].dispose()
+  }
+  this.overlays.dispose()
+
+  this.gl = null
 }
 
 proto.addObject = function(object) {
-  this.objects.push(object)
-  this.setDirty()
+  if(this.objects.indexOf(object) < 0) {
+    this.objects.push(object)
+    this.setDirty()
+  }
 }
 
 proto.removeObject = function(object) {
@@ -550,15 +523,17 @@ proto.removeObject = function(object) {
   for(var i=0; i<objects.length; ++i) {
     if(objects[i] === object) {
       objects.splice(i,1)
+      this.setDirty()
       break
     }
   }
-  this.setDirty()
 }
 
 proto.addOverlay = function(object) {
-  this.overlays.push(object)
-  this.setDirty()
+  if(this.overlays.indexOf(object) < 0) {
+    this.overlays.push(object)
+    this.setOverlayDirty()
+  }
 }
 
 proto.removeObject = function(object) {
@@ -566,10 +541,10 @@ proto.removeObject = function(object) {
   for(var i=0; i<objects.length; ++i) {
     if(objects[i] === object) {
       objects.splice(i,1)
+      this.setOverlayDirty()
       break
     }
   }
-  this.setDirty()
 }
 
 function createGLPlot2D(options) {
