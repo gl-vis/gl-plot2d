@@ -396,7 +396,7 @@ proto.update = function(options) {
   var gl = this.gl
 
   this.pixelRatio      = options.pixelRatio || 1
-  
+
   var pixelRatio       = this.pixelRatio
   this.pickPixelRatio  = Math.max(pixelRatio, 1)
 
@@ -431,7 +431,7 @@ proto.update = function(options) {
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
 
   this.titleCenter      = (options.titleCenter || [
-    0.5*(viewBox[0]+viewBox[2])/pixelRatio,(viewBox[3]-40)/pixelRatio]).slice()
+    0.5*(viewBox[0]+viewBox[2])/pixelRatio,(viewBox[3]+120)/pixelRatio]).slice()
   this.titleEnable      = !('titleEnable' in options) || !!options.titleEnable
   this.titleAngle       = options.titleAngle || 0
   this.titleColor       = (options.titleColor || [0,0,0,1]).slice()
