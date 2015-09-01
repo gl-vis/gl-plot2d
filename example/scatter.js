@@ -103,7 +103,6 @@ function updateTicks() {
   }
 }
 
-
 var selectBox = createSelectBox(plot, {
   innerFill: false,
   outerFill: true
@@ -120,7 +119,7 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 var scatter = createScatter(plot, {
   positions: positions,
   size: 7,
-  color: [0.3,0.5,0.8,0.5]
+  color: [0.3,0.5,0.8,0.6]
 })
 
 var lastX = 0, lastY = 0
