@@ -537,7 +537,7 @@ proto.addOverlay = function(object) {
   }
 }
 
-proto.removeObject = function(object) {
+proto.removeOverlay = function(object) {
   var objects = this.overlays
   for(var i=0; i<objects.length; ++i) {
     if(objects[i] === object) {
