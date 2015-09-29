@@ -496,6 +496,7 @@ proto.update = function(options) {
 }
 
 proto.dispose = function() {
+  this.box.dispose()
   this.grid.dispose()
   this.text.dispose()
   this.line.dispose()
