@@ -13,7 +13,7 @@ window.addEventListener('resize', fit(canvas, null, +window.devicePixelRatio), f
 
 var gl = canvas.getContext('webgl')
 
-var POINT_COUNT = 1e4
+var POINT_COUNT = 1e7
 
 var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight
 var dataBox = [-10,-10/aspect,10,10/aspect]
@@ -50,7 +50,7 @@ function makeTicks(lo, hi, step, precision) {
 var options = {
   gl:             gl,
   dataBox:        dataBox,
-  title:          '100 million points',
+  title:          '10 million points',
   ticks:          [ makeTicks(-100,100,1,0), makeTicks(-100,100,1,0) ],
   labels:         ['x', 'y'],
   pixelRatio:     +window.devicePixelRatio,
@@ -71,7 +71,8 @@ function computeTickSpan(lo, hi, tickMarks) {
   var precision = Math.floor(digits)
   var step = Math.pow(10, precision)
 
-  if(Math.abs(digits - tickMarks[0] - 0.5) <= 1 &&
+
+  if(precision === tickMarks[0] &&
      tickMarks[2] <= lo &&
      hi <= tickMarks[3]) {
     return false
@@ -96,10 +97,11 @@ function updateTicks() {
 
     options.ticks[0] = makeTicks(lastXTickMarks[2], lastXTickMarks[3], step, precision)
     options.ticks[1] = makeTicks(lastYTickMarks[2], lastYTickMarks[3], step, precision)
+    options.dataBox = dataBox
+
     plot.update(options)
   }
 }
-
 
 var selectBox = createSelectBox(plot, {
   innerFill: false,
@@ -117,7 +119,7 @@ for(var i=0; i<2*POINT_COUNT; ++i) {
 var scatter = createScatter(plot, {
   positions: positions,
   size: 7,
-  color: [0.3,0.5,0.8,0.5]
+  color: [0.3,0.5,0.8,0.6]
 })
 
 var lastX = 0, lastY = 0
@@ -182,6 +184,7 @@ mouseChange(function(buttons, x, y, mods) {
       ]
       plot.setDataBox(dataBox)
       boxEnabled = false
+      updateTicks()
     }
   }
 
@@ -211,9 +214,9 @@ function render() {
   requestAnimationFrame(render)
   plot.draw()
 
-  if(Date.now() - lastInputTime > 500) {
+  //if(Date.now() - lastInputTime > 500) {
     updateTicks()
-  }
+  //}
 }
 
 render()
