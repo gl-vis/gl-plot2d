@@ -507,7 +507,7 @@ proto.dispose = function() {
   for(var i=this.overlays.length-1; i>=0; --i) {
     this.overlays[i].dispose()
   }
-  this.overlays.dispose()
+  this.overlays.length = 0
 
   this.gl = null
 }
