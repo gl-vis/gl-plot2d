@@ -80,11 +80,13 @@ mouseChange(function(buttons, x, y) {
     plot.setDataBox(dataBox)
   } else {
     var result = plot.pick(x/plot.pixelRatio, y/plot.pixelRatio)
+    /*
     if(result) {
       plot.setSpike(result.dataCoord[0], result.dataCoord[1])
     } else {
       plot.setSpike()
     }
+    */
   }
 
   lastX = x

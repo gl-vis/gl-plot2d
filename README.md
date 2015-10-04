@@ -1,10 +1,6 @@
 # gl-plot2d
 
-A WebGL based 2D rendering for large plots.
-
-## Example
-
-Still messy here...
+A rendering engine for drawing huge 2D plots using WebGL.
 
 ## Install
 
@@ -110,17 +106,15 @@ Updates the properties of the plot.
 
 * `options` is an option structure, as described in the constructor
 
-#### `plot.setScreenBox(box)`
-Changes the screen box of the plot
-
-#### `plot.setViewBox(box)`
-Changes the view box
-
-#### `plot.setDataBox(box)`
-Changes the view box
-
 #### `plot.draw()`
 Redraws the plot.  Call this once per `requestAnimationFrame()`
+
+#### `plot.pick(x, y)`
+Finds the current data point highlighted by the user.  
+
+* `x,y` are the coordinates of the mouse in pixel coordinates
+
+**Returns** If the user is selecting a data point, then returns the current data point selected by the user.  Otherwise, returns `null`
 
 #### `plot.dispose()`
 Destroy plot and release all associated resources
