@@ -365,12 +365,20 @@ proto.setScreenBox = function(nbox) {
 proto.setDataBox = function(nbox) {
   var dataBox = this.dataBox
 
-  dataBox[0] = nbox[0]
-  dataBox[1] = nbox[1]
-  dataBox[2] = nbox[2]
-  dataBox[3] = nbox[3]
+  var different =
+    dataBox[0] !== nbox[0] ||
+    dataBox[1] !== nbox[1] ||
+    dataBox[2] !== nbox[2] ||
+    dataBox[3] !== nbox[3]
 
-  this.setDirty()
+  if(different) {
+    dataBox[0] = nbox[0]
+    dataBox[1] = nbox[1]
+    dataBox[2] = nbox[2]
+    dataBox[3] = nbox[3]
+
+    this.setDirty()
+  }
 }
 
 proto.setViewBox = function(nbox) {
@@ -419,7 +427,7 @@ proto.update = function(options) {
 
   this.gridLineEnable  = (options.gridLineEnable || [true,true]).slice()
   this.gridLineWidth   = (options.gridLineWidth || [1,1]).slice()
-  this.gridLineColor   = deepClone(options.gridLine ||
+  this.gridLineColor   = deepClone(options.gridLineColor ||
     [[0.5,0.5,0.5,1],[0.5,0.5,0.5,1]])
 
   this.zeroLineEnable   = (options.zeroLineEnable || [true, true]).slice()
