@@ -147,7 +147,7 @@ return function() {
   //Configure premultiplied alpha blending
   gl.enable(gl.BLEND)
   gl.blendEquation(gl.FUNC_ADD, gl.FUNC_ADD);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
   //Draw border
   gl.scissor(
@@ -478,8 +478,8 @@ proto.update = function(options) {
       continue
     }
     axisTicks.sort(compareTicks)
-    bounds[i]   = axisTicks[0].x
-    bounds[i+2] = axisTicks[axisTicks.length-1].x
+    bounds[i]   = Math.min(bounds[i], axisTicks[0].x)
+    bounds[i+2] = Math.max(bounds[i+2], axisTicks[axisTicks.length-1].x)
   }
 
   //Update grid
