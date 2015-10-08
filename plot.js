@@ -157,9 +157,9 @@ return function() {
     screenBox[3]-screenBox[1])
   var borderColor = this.borderColor
   gl.clearColor(
-    borderColor[0],
-    borderColor[1],
-    borderColor[2],
+    borderColor[0]*borderColor[3],
+    borderColor[1]*borderColor[3],
+    borderColor[2]*borderColor[3],
     borderColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -176,9 +176,9 @@ return function() {
     viewPixels[3]-viewPixels[1])
   var backgroundColor = this.backgroundColor
   gl.clearColor(
-    backgroundColor[0],
-    backgroundColor[1],
-    backgroundColor[2],
+    backgroundColor[0]*backgroundColor[3],
+    backgroundColor[1]*backgroundColor[3],
+    backgroundColor[2]*backgroundColor[3],
     backgroundColor[3])
   gl.clear(gl.COLOR_BUFFER_BIT)
 
