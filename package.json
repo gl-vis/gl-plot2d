@@ -27,6 +27,7 @@
     "gl-scatter2d": "^1.0.0",
     "gl-select-box": "^1.0.0",
     "gl-spikes2d": "^1.0.0",
+    "gl-texture2d-pip": "^1.0.0",
     "mouse-change": "^1.2.1",
     "mouse-wheel": "^1.0.2"
   },
