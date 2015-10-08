@@ -24,7 +24,6 @@ function GLPlot2D(gl, pickBuffer) {
 
   this.pixelRatio       = 1
 
-
   this.tickMarkLength   = [0,0,0,0]
   this.tickMarkWidth    = [0,0,0,0]
   this.tickMarkColor    = [[0,0,0,1],
@@ -300,7 +299,7 @@ return function() {
   var pickOffset = 1
   var objects = this.objects
   for(var i=0; i<objects.length; ++i) {
-    pickOffset += objects[i].drawPick(pickOffset)
+    pickOffset = objects[i].drawPick(pickOffset)
   }
 
   pickBuffer.end()
