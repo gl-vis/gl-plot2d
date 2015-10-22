@@ -56,6 +56,7 @@ Options can contain the following parameters,
 | `tickColor` | Color of ticks  | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
 | `tickMarkWidth` | Tick marks | `[0,0,0,0]` |
 | `tickMarkLength` |    | `[0,0,0,0]` |
+| `tickMarkColor` |    | `[[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]` |
 
 *Note:* Ticks are encoded as an array of objects, each with the following properties:
 
