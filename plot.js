@@ -240,29 +240,29 @@ return function() {
   var borderLineEnable = this.borderLineEnable
   var borderLineWidth  = this.borderLineWidth
   var borderLineColor  = this.borderLineColor
-  if(borderLineEnable[0]) {
+  if(borderLineEnable[1]) {
     line.drawLine(
       viewPixels[0], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
       viewPixels[0], viewPixels[3] + 0.5*borderLineWidth[3]*pixelRatio,
-      borderLineWidth[0], borderLineColor[0])
+      borderLineWidth[1], borderLineColor[1])
   }
-  if(borderLineEnable[1]) {
+  if(borderLineEnable[0]) {
     line.drawLine(
       viewPixels[0] - 0.5*borderLineWidth[0]*pixelRatio, viewPixels[1],
       viewPixels[2] + 0.5*borderLineWidth[2]*pixelRatio, viewPixels[1],
-      borderLineWidth[1], borderLineColor[1])
-  }
-  if(borderLineEnable[2]) {
-    line.drawLine(
-      viewPixels[2], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
-      viewPixels[2], viewPixels[3] + 0.5*borderLineWidth[3]*pixelRatio,
-      borderLineWidth[2], borderLineColor[2])
+      borderLineWidth[0], borderLineColor[0])
   }
   if(borderLineEnable[3]) {
     line.drawLine(
+      viewPixels[2], viewPixels[1] - 0.5*borderLineWidth[1]*pixelRatio,
+      viewPixels[2], viewPixels[3] + 0.5*borderLineWidth[3]*pixelRatio,
+      borderLineWidth[3], borderLineColor[3])
+  }
+  if(borderLineEnable[2]) {
+    line.drawLine(
       viewPixels[0] - 0.5*borderLineWidth[0]*pixelRatio, viewPixels[3],
       viewPixels[2] + 0.5*borderLineWidth[2]*pixelRatio, viewPixels[3],
-      borderLineWidth[3], borderLineColor[3])
+      borderLineWidth[2], borderLineColor[2])
   }
 
   //Draw text elements
