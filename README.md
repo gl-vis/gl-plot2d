@@ -53,9 +53,10 @@ Options can contain the following parameters,
 | `tickEnable` | Turn on display of ticks for a given axis | `[true, true, true, true]` |
 | `tickPad` | Distance between tick text and tick marks |  `[15,15,15,15]` |
 | `tickAngle` | Angle to draw ticks at | `[0,0,0,0]` |
-| `tickColor` | Color of ticks  | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
+| `tickColor` | Color of tick labels | `[[0,0,0,1], [0,0,0,1], [0,0,0,1], [0,0,0,1]]`
 | `tickMarkWidth` | Tick marks | `[0,0,0,0]` |
 | `tickMarkLength` |    | `[0,0,0,0]` |
+| `tickMarkColor` |    | `[[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]]` |
 
 *Note:* Ticks are encoded as an array of objects, each with the following properties:
 

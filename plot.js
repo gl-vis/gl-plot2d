@@ -436,6 +436,8 @@ proto.update = function(options) {
 
   this.tickMarkLength   = (options.tickMarkLength || [0,0,0,0]).slice()
   this.tickMarkWidth    = (options.tickMarkWidth || [0,0,0,0]).slice()
+  this.tickMarkColor    = deepClone(options.tickMarkColor ||
+    [[0,0,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,1]])
 
   this.titleCenter      = (options.titleCenter || [
     0.5*(viewBox[0]+viewBox[2])/pixelRatio,(viewBox[3]+120)/pixelRatio]).slice()
