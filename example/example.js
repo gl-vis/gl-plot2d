@@ -38,7 +38,7 @@ var options = {
   pixelRatio:     +window.devicePixelRatio,
   tickMarkWidth:  [2,2,2,2],
   tickMarkLength: [6,6,6,6],
-  // enablePick:     false
+  // static:     true
 }
 
 var plot = createPlot(options)

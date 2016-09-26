@@ -76,7 +76,7 @@ function GLPlot2D(gl, pickBuffer) {
 
   this._tickBounds      = [Infinity, Infinity, -Infinity, -Infinity]
 
-  this.enablePick = true
+  this.static = false
 
   this.dirty        = false
   this.pickDirty    = false
@@ -292,7 +292,7 @@ return function() {
 proto.drawPick = (function() {
 
 return function() {
-  if (!this.enablePick) return;
+  if (this.static) return;
 
   var pickBuffer = this.pickBuffer
   var gl = this.gl
@@ -312,7 +312,7 @@ return function() {
 
 proto.pick = (function() {
 return function(x, y) {
-  if (!this.enablePick) return;
+  if (this.static) return;
 
   var pixelRatio     = this.pixelRatio
   var pickPixelRatio = this.pickPixelRatio
@@ -507,7 +507,7 @@ proto.update = function(options) {
     titleFont:  options.titleFont || 'sans-serif'
   })
 
-  this.enablePick = options.enablePick === false ? false : true;
+  this.static = !!options.static;
 
   this.setDirty()
 }
