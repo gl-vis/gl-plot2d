@@ -15,7 +15,7 @@
     "binary-search-bounds": "^2.0.3",
     "gl-buffer": "^2.1.2",
     "gl-select-static": "^2.0.2",
-    "gl-shader": "^4.0.5",
+    "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
     "glslify": "^2.2.1",
     "text-cache": "^4.0.0"
