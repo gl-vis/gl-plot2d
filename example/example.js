@@ -37,7 +37,8 @@ var options = {
   labels:         ['x', 'y'],
   pixelRatio:     +window.devicePixelRatio,
   tickMarkWidth:  [2,2,2,2],
-  tickMarkLength: [6,6,6,6]
+  tickMarkLength: [6,6,6,6],
+  // static:     true
 }
 
 var plot = createPlot(options)
