@@ -151,18 +151,20 @@ return function() {
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
   //Draw border
-  gl.scissor(
-    screenBox[0],
-    screenBox[1],
-    screenBox[2]-screenBox[0],
-    screenBox[3]-screenBox[1])
-  var borderColor = this.borderColor
-  gl.clearColor(
-    borderColor[0]*borderColor[3],
-    borderColor[1]*borderColor[3],
-    borderColor[2]*borderColor[3],
-    borderColor[3])
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+  if (this.borderColor) {
+    gl.scissor(
+      screenBox[0],
+      screenBox[1],
+      screenBox[2]-screenBox[0],
+      screenBox[3]-screenBox[1])
+    var borderColor = this.borderColor
+    gl.clearColor(
+      borderColor[0]*borderColor[3],
+      borderColor[1]*borderColor[3],
+      borderColor[2]*borderColor[3],
+      borderColor[3])
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+  }
 
   //Draw center pane
   gl.scissor(
@@ -427,7 +429,7 @@ proto.update = function(options) {
   var aspectRatio = (viewBox[2] - viewBox[0]) / (viewBox[3] - viewBox[1])
   this.setDataBox(options.dataBox || [-10, -10/aspectRatio, 10, 10/aspectRatio])
 
-  this.borderColor     = (options.borderColor     || [0,0,0,0]).slice()
+  this.borderColor     = options.borderColor !== false ? (options.borderColor || [0,0,0,0]).slice() : false
   this.backgroundColor = (options.backgroundColor || [0,0,0,0]).slice()
 
   this.gridLineEnable  = (options.gridLineEnable || [true,true]).slice()
