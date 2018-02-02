@@ -17,13 +17,14 @@
     "gl-select-static": "^2.0.2",
     "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
-    "glslify": "^2.2.1",
+    "glslify": "^6.1.0",
     "text-cache": "^4.1.0"
   },
   "devDependencies": {
     "camera-2d": "^1.0.0",
     "canvas-fit": "^1.4.0",
     "gauss-random": "^1.0.1",
+    "gl-line2d": "^1.4.1",
     "gl-scatter2d": "^1.0.0",
     "gl-select-box": "^1.0.0",
     "gl-spikes2d": "^1.0.0",
