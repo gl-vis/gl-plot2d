@@ -28,7 +28,7 @@
     "gl-scatter2d": "git://github.com/gl-vis/gl-scatter2d.git#a8c91a9f83f04dc6055ec52d230614e3a704d769",
     "gl-select-box": "git://github.com/gl-vis/gl-select-box.git#6966feb6c78f3709c0d93a364ae1d97de28df876",
     "gl-spikes2d": "^1.0.0",
-    "gl-texture2d-pip": "git://github.com/gl-vis/gl-texture2d-pip.git#efee2268c4e0a91fbb226d19859a50d8262c715c",
+    "gl-texture2d-pip": "git://github.com/archmoj/gl-texture2d-pip.git#efee2268c4e0a91fbb226d19859a50d8262c715c",
     "mouse-change": "^1.2.1",
     "mouse-wheel": "^1.0.2"
   },
