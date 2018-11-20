@@ -14,7 +14,7 @@
   "dependencies": {
     "binary-search-bounds": "^2.0.3",
     "gl-buffer": "^2.1.2",
-    "gl-select-static": "git://github.com/gl-vis/gl-select-static.git#c1a20bcb01ce45da99de17eb21b827f4d8b1d060",
+    "gl-select-static": "git://github.com/gl-vis/gl-select-static.git#4276d924662a77e21cdbffdf87bfcf162e97007f",
     "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
     "glslify": "^6.1.0",
