@@ -12,6 +12,7 @@
     ]
   },
   "dependencies": {
+    "acorn": "^6.0.4",
     "binary-search-bounds": "^2.0.3",
     "gl-buffer": "^2.1.2",
     "gl-select-static": "git://github.com/gl-vis/gl-select-static.git#4276d924662a77e21cdbffdf87bfcf162e97007f",
