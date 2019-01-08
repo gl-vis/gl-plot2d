@@ -14,15 +14,16 @@
   "dependencies": {
     "binary-search-bounds": "^2.0.3",
     "gl-buffer": "^2.1.2",
-    "gl-select-static": "^2.0.2",
+    "gl-select-static": "^2.0.3",
     "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
-    "glslify": "^6.1.0",
+    "glslify": "^6.4.1",
     "text-cache": "^4.2.0"
   },
   "devDependencies": {
     "camera-2d": "^1.0.0",
     "canvas-fit": "^1.4.0",
+    "chttps": "^1.0.6",
     "gauss-random": "^1.0.1",
     "gl-line2d": "^1.4.1",
     "gl-scatter2d": "^1.0.0",
@@ -33,6 +34,7 @@
     "mouse-wheel": "^1.0.2"
   },
   "scripts": {
+    "postshrinkwrap": "chttps .",
     "test": "tape test/*.js"
   },
   "repository": {
