@@ -1,6 +1,6 @@
 {
   "name": "gl-plot2d",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "2D webgl plots",
   "main": "plot.js",
   "directories": {
