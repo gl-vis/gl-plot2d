@@ -14,7 +14,7 @@
   "dependencies": {
     "binary-search-bounds": "^2.0.4",
     "gl-buffer": "^2.1.2",
-    "gl-select-static": "^2.0.6",
+    "gl-select-static": "^2.0.7",
     "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
     "glslify": "^7.0.0",
