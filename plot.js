@@ -504,9 +504,18 @@ proto.update = function(options) {
     labels:     options.labels    || ['x', 'y'],
     labelSize:  options.labelSize || [12,12],
     labelFont:  options.labelFont || ['sans-serif', 'sans-serif'],
+    labelFontStyle: options.labelFontStyle || ['normal', 'normal'],
+    labelFontWeight: options.labelFontWeight || ['normal', 'normal'],
+    labelFontStretch: options.labelFontStretch || ['normal', 'normal'],
+    labelFontVariant: options.labelFontVariant || ['normal', 'normal'],
+
     title:      options.title     || '',
     titleSize:  options.titleSize || 18,
-    titleFont:  options.titleFont || 'sans-serif'
+    titleFont:  options.titleFont || 'sans-serif',
+    titleFontStyle: options.titleFontStyle || 'normal',
+    titleFontWeight: options.titleFontWeight || 'normal',
+    titleFontStretch: options.titleFontStretch || 'normal',
+    titleFontVariant: options.titleFontVariant || 'normal'
   })
 
   this.static = !!options.static;
