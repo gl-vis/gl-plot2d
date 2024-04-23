@@ -18,7 +18,7 @@
     "gl-shader": "^4.2.1",
     "glsl-inverse": "^1.0.0",
     "glslify": "^7.0.0",
-    "text-cache": "^4.2.2"
+    "text-cache": "github:gl-vis/text-cache#5369cdcfa5b94077f6be76b1dfa74d6ac87e76f3"
   },
   "devDependencies": {
     "camera-2d": "^1.0.1",
